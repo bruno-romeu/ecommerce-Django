@@ -17,6 +17,11 @@ class EssenceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ProductSerializer(serializers.ModelSerializer):
+
+    category = CategorySerializer(read_only=True)
+    size = SizeSerializer(read_only=True)
+    essence = EssenceSerializer(read_only=True)
+
     class Meta:
         model = Product
         fields = '__all__'
