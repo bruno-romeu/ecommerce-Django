@@ -25,11 +25,11 @@ class Order(models.Model):
     
     @property
     def payment_status(self):
-        return self.payment.status if hasattr(self, 'payment') else 'Sem pagamento'
+        return self.payment.status if hasattr(self, 'payment') and self.payment else 'Sem pagamento'
 
     @property
     def shipping_status(self):
-        return self.shipping.status if hasattr(self, 'shipping') else 'Sem envio'
+        return self.shipping.status if hasattr(self, 'shipping') and self.shipping else 'Sem envio'
 
 
 class OrderItem(models.Model):

@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from django.contrib.auth import logout
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from clients.models import Client
 from clients.serializers import ClientSerializer, UserClientRegisterSerializer
@@ -66,4 +66,22 @@ class UserForgotPasswordView(APIView):
 
 
 
-#fazer API que valida o UID e Token para redefinir a senha
+# API que valida o UID e Token para redefinir a senha
+class UserPasswordResetConfirmView(APIView):
+    def post(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            new_password = request.data.get('new_password')
+            if new_password:
+                user.set_password(new_password)
+                user.save()
+                return Response({'message': 'Senha redefinida com sucesso.'}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'A nova senha é obrigatória.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'error': 'Token inválido ou expirado.'}, status=status.HTTP_400_BAD_REQUEST)
