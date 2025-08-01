@@ -15,10 +15,15 @@ class EssenceAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'description' , 'price' , 'stock' , 'category' , 'essence' , 'size' , 'image' , 'is_active',)
     search_fields = ('name', 'category', 'essence', 'size',)
+    list_filter = ('category', 'essence', 'size', 'is_active',)
+
+    autocomplete_fields = ('category', 'essence', 'size',)
 
 
 @admin.register(Size)
 class SizeAdmin(admin.ModelAdmin):
     list_display = ('name', 'weight', 'height', 'width', 'length', 'diameter', 'circumference',)
+    search_fields = ('name',)
+
 
 

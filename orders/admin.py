@@ -3,7 +3,7 @@ from .models import Order, OrderItem
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    raw_id_fields = ('product',)
+    autocomplete_fields = ('product', )
     readonly_fields = ('price',)
     fields = ('product', 'quantity', 'price')
 
