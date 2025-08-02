@@ -9,27 +9,46 @@ class ClientSerializer(serializers.ModelSerializer):
 
 
 class UserClientRegisterSerializer(serializers.ModelSerializer):
-    phone = serializers.CharField(required=False)
-    birthday = serializers.DateField(required=False)
+    birthday = serializers.DateField(write_only=True, required=False)
+    phone = serializers.CharField(write_only=True, required=False)
+    cpf = serializers.CharField(write_only=True, required=False)
+    first_name = serializers.CharField(max_length=150)
+    last_name = serializers.CharField(max_length=150)
+    email = serializers.EmailField(max_length=255, required=True)
+
+    confirm_password = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'phone', 'birthday']
+        fields = [ 'first_name', 'last_name', 'email', 'password', 'confirm_password', 'phone', 'cpf', 'birthday']
         extra_kwargs = {'password': {'write_only': True}}
+
+    def validate(self, data):
+        if data['password'] != data['confirm_password']:
+            raise serializers.ValidationError({"password": "As senhas devem ser iguais."})
+        if User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError({'email': 'Este email já está cadastrado.'})
+        return data 
 
     def create(self, validated_data):
         phone = validated_data.pop('phone', None)
         birthday = validated_data.pop('birthday', None)
+        cpf = validated_data.pop('cpf')
+        validated_data.pop('confirm_password')
 
-        email_exists = User.objects.filter(email=validated_data['email']).exists()
+        first_name = validated_data['first_name'].strip().capitalize()
+        last_name = validated_data['last_name'].strip().capitalize()
+        full_name = first_name + ' ' + last_name
+        username = full_name
+
+        validated_data['username'] = username
         
-        if email_exists:
-            raise serializers.ValidationError("O email informado já está cadastrado.")
-        else:
-            user = User.objects.create_user(
-                username=validated_data['username'],
-                email=validated_data.get('email'),
-                password=validated_data['password']
-            )
-            Client.objects.create(user=user, phone=phone, birthday=birthday)
-            return user
+
+        password = validated_data.pop('password')
+        user = User.objects.create_user(**validated_data)
+        user.set_password(password)
+        user.save()
+
+        Client.objects.create(user=user, cpf=cpf, phone=phone, birthday=birthday)
+
+        return user

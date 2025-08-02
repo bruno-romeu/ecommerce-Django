@@ -16,7 +16,7 @@ from clients.serializers import ClientSerializer, UserClientRegisterSerializer
 #APIS Views de clientes e usuários
 
 class UserRegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
+    queryset = Client.objects.all()
     serializer_class = UserClientRegisterSerializer
 
 class CustomAuthToken(ObtainAuthToken):
