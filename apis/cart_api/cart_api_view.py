@@ -26,6 +26,7 @@ class CartItemCreateView(generics.CreateAPIView):
         else:
             serializer.save(cart=cart)
 
+
 class CartItemDestroyView(generics.DestroyAPIView):
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer

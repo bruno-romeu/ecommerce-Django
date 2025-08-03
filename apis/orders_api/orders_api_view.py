@@ -1,12 +1,14 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, serializers
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.exceptions import ValidationError
 from django.db import transaction
 
 from orders.models import Order, OrderItem
 from orders.serializers import OrderSerializer, OrderStatusSerializer
 from cart.models import Cart
 from clients.models import Client
+from checkout.models import Address
 
 
 # API para criar pedidos a partir do carrinho de compras 
@@ -21,24 +23,24 @@ class OrderCreateView(generics.CreateAPIView):
         try:
             client = Client.objects.get(user=user)
         except Client.DoesNotExist:
-            raise serializer.ValidationError({'detail': 'Cliente não encontrado.'})
+            raise ValidationError({'detail': 'Cliente não encontrado.'})
 
     # obter o carrinho do usuário
         try:
             cart = Cart.objects.get(user=user)
         except Cart.DoesNotExist:
             # se o carrinho não existe ou está vazio, não pode criar um pedido
-            raise serializer.ValidationError({'detail':'Carrinho vazio ou não encontrado.'})
+            raise ValidationError({'detail':'Carrinho vazio ou não encontrado.'})
 
         cart_items = cart.items.all()
 
         if not cart_items.exists():
-            raise serializer.ValidationError({'detail': 'Carrinho vazio. Adicione itens antes de criar um pedido.'})
+            raise ValidationError({'detail': 'Carrinho vazio. Adicione itens antes de criar um pedido.'})
         
     # usar transação atômmica para garantir que tudo seja salvo ou nada seja salvo
         with transaction.atomic():
-            order = serializer.save(client=client, total=0.00)
-            calculated_total = 0
+            address = Address.objects.get(id=self.request.data.get('address'))
+            order = serializer.save(client=client, address=address)
 
             for cart_item in cart_items:
                 OrderItem.objects.create(
@@ -47,10 +49,6 @@ class OrderCreateView(generics.CreateAPIView):
                     quantity=cart_item.quantity,
                     price=cart_item.product.price
                 )
-                calculated_total += cart_item.product.price * cart_item.quantity
-
-            order.total = calculated_total
-            order.save()
             cart_items.delete()
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
@@ -59,6 +57,7 @@ class OrderCreateView(generics.CreateAPIView):
 
 #API para listar pedidos do usuário autenticado
 class OrderListView(generics.ListAPIView):
+    queryset = Order.objects.all()
     serializer_class = OrderSerializer #verificar se o serializer está aninhado
     permission_classes = [IsAuthenticated]
 
@@ -74,6 +73,7 @@ class OrderListView(generics.ListAPIView):
 
 #API para detalhar um pedido específico do usuário autenticado
 class OrderDetailView(generics.RetrieveAPIView):
+    queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'pk' # verificar se o correto é 'pk' ou 'id'
@@ -109,20 +109,20 @@ class OrderStatusUpdateView(generics.UpdateAPIView):
             return
         
         if old_status in ['delivered', 'canceled']:
-            raise serializers.ValidationError({'status': f'Não é possível alterar o status de um pedido já {order.get_status_display()}'})
+            raise ValidationError({'status': f'Não é possível alterar o status de um pedido já {order.get_status_display()}'})
         
         if new_status == 'paid' and old_status != 'pending':
-            raise serializers.ValidationError({'status': f'O status "pago" só pode ser definido em um pedido "pendentte".'})
+            raise ValidationError({'status': f'O status "pago" só pode ser definido em um pedido "pendente".'})
         
         if new_status == 'shipped' and old_status != 'paid':
-            raise serializers.ValidationError({'status': f'O status "enviado" só pode ser definido em um pedido "pago".'})
-        
+            raise ValidationError({'status': f'O status "enviado" só pode ser definido em um pedido "pago".'})
+
         if new_status == 'delivered' and old_status != 'shipped':
-            raise serializers.ValidationError({'status': f'O status "entregue" só pode ser definido em um pedido "enviado".'})
-        
+            raise ValidationError({'status': f'O status "entregue" só pode ser definido em um pedido "enviado".'})
+
         if new_status == 'canceled' and old_status in ['pending', 'paid']:
-            raise serializers.ValidationError({'status': f'O status "cancelado" só pode ser definido em um pedido "pendente" ou "pago".'})
-        
+            raise ValidationError({'status': f'O status "cancelado" só pode ser definido em um pedido "pendente" ou "pago".'})
+
         serializer.save()
 
         # lógica para enviar notificações das atualizações de status
