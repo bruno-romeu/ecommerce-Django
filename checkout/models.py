@@ -72,15 +72,9 @@ class Payment(models.Model):
         ('refunded', 'Reembolsado'),
     ]
 
-    PAYMENT_CHOICES = [
-        ('PIX', 'PIX'),
-        ('CREDIT_CARD', 'Cartão de Crédito'),
-        ('DEBIT_CARD', 'Cartão de Débito'),
-        ('BOLETO', 'Boleto'),
-    ]
 
     order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='payment')
-    method = models.CharField(max_length=50, choices=PAYMENT_CHOICES)
+    method = models.CharField(max_length=50)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     transaction_id = models.CharField(max_length=100, blank=True, null=True)
     paid_at = models.DateTimeField(null=True, blank=True)
