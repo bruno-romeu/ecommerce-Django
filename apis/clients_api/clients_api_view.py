@@ -25,15 +25,22 @@ class CustomAuthToken(ObtainAuthToken):
         token = Token.objects.get(key=response.data['token'])
         return Response({'token': token.key, 'user_id': token.user_id})
 
+
 class ClientProfileView(generics.RetrieveAPIView):
+    queryset = Client.objects.all()
+    lookup_field = 'id'
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         return Client.objects.get(user=self.request.user)
 
+
+
 class UserLogoutView(APIView):
     def post(self, request):
+        if request.user.is_authenticated:
+            Token.objects.filter(user=request.user).delete()
         logout(request)
         return Response({'message': 'Logout realizado.'}, status=200)
     
