@@ -18,9 +18,9 @@ class EssenceSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
 
-    category = CategorySerializer(read_only=True)
-    size = SizeSerializer(read_only=True)
-    essence = EssenceSerializer(read_only=True)
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    size = serializers.PrimaryKeyRelatedField(queryset=Size.objects.all(), allow_null=True)
+    essence = serializers.PrimaryKeyRelatedField(queryset=Essence.objects.all(), allow_null=True)
 
     class Meta:
         model = Product
