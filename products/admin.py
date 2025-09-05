@@ -13,7 +13,7 @@ class EssenceAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description' , 'price' , 'stock' , 'category' , 'essence' , 'size' , 'image' , 'is_active',)
+    list_display = ('name', 'short_description' , 'price' , 'stock' , 'category' , 'essence' , 'size' , 'image' , 'is_active',)
     search_fields = ('name', 'category', 'essence', 'size',)
     list_filter = ('category', 'essence', 'size', 'is_active',)
 

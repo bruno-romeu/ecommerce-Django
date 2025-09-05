@@ -33,9 +33,11 @@ class Size(models.Model):
     
 class Product(models.Model):
     name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
+    short_description = models.TextField(blank=True)
+    full_description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
-    stock = models.PositiveIntegerField()
+    stock_quantity = models.PositiveIntegerField(default=0)
+    stock = models.BooleanField()
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     essence = models.ForeignKey(Essence, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     size = models.ForeignKey(Size, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
