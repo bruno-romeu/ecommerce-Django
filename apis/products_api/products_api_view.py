@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from products.models import Product, Size, Essence
+from products.models import Product, Size, Essence, Category
 from products.serializers import CategorySerializer, EssenceSerializer, ProductSerializer, SizeSerializer
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -66,3 +66,8 @@ class ProductFilter(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter]
     filterset_fields = ['name', 'category', 'essence', 'size']
     search_fields = ['name', 'category__name', 'essence__name', 'size__name']
+
+class CategoryListView(generics.ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]

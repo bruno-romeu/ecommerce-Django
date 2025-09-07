@@ -2,9 +2,17 @@ from rest_framework import serializers
 from .models import Category, Size, Essence, Product
 
 class CategorySerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
         fields = '__all__'
+
+    def get_image(self, category):
+        request = self.context.get('request')
+        if category.image:
+            return request.build_absolute_uri(category.image.url)
+        return None
 
 class SizeSerializer(serializers.ModelSerializer):
     class Meta:
