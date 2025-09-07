@@ -1,8 +1,9 @@
-from rest_framework import generics, viewsets, permissions
+from rest_framework import generics, viewsets
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from products.models import Category, Essence, Product, Size
+from products.models import Product, Size, Essence
 from products.serializers import CategorySerializer, EssenceSerializer, ProductSerializer, SizeSerializer
 
 class ProductListCreateView(generics.ListCreateAPIView):
@@ -21,6 +22,25 @@ class ProductListCreateView(generics.ListCreateAPIView):
 class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        all_sizes = Size.objects.all()
+        all_essences = Essence.objects.all()
+
+        product_data = self.get_serializer(instance).data
+        sizes_data = SizeSerializer(all_sizes, many=True).data
+        essences_data = EssenceSerializer(all_essences, many=True).data
+
+        response_data = {
+            "product": product_data,
+            "available_options": {
+                "sizes": sizes_data,
+                "essences": essences_data
+            }
+        }
+
+        return Response(response_data)
 
     def get_permissions(self):
 

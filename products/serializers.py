@@ -20,8 +20,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     image = serializers.SerializerMethodField()
     category = serializers.StringRelatedField()
-    size = serializers.PrimaryKeyRelatedField(queryset=Size.objects.all(), allow_null=True)
-    essence = serializers.PrimaryKeyRelatedField(queryset=Essence.objects.all(), allow_null=True)
+    size = SizeSerializer(read_only=True)
+    essence = EssenceSerializer(read_only=True)
 
     class Meta:
         model = Product

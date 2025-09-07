@@ -41,6 +41,7 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     essence = models.ForeignKey(Essence, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
     size = models.ForeignKey(Size, on_delete=models.SET_NULL, null=True, blank=True, related_name='products')
+    is_bestseller = models.BooleanField(default=False, verbose_name="É um mais vendido?")
     image = models.ImageField(upload_to='products/', blank=True, null=True)
     is_active = models.BooleanField(default=True)
 
