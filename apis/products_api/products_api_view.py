@@ -71,3 +71,11 @@ class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+class BestSellerListView(generics.ListAPIView):
+    """
+    Retorna uma lista de produtos marcados como 'is_bestseller=True'.
+    """
+    queryset = Product.objects.filter(is_bestseller=True, is_active=True)
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
