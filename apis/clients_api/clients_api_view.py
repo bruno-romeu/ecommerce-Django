@@ -4,19 +4,18 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from django.contrib.auth import logout
-from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
-from clients.models import Client
-from clients.serializers import ClientSerializer, UserClientRegisterSerializer
+from accounts.models import CustomUser
+from accounts.serializers import AddressSerializer, ClientSerializer, UserClientRegisterSerializer
 
 
 #APIS Views de clientes e usuários
 
 class UserRegisterView(generics.CreateAPIView):
-    queryset = Client.objects.all()
+    queryset = CustomUser.objects.all()
     serializer_class = UserClientRegisterSerializer
 
 class CustomAuthToken(ObtainAuthToken):
@@ -27,13 +26,13 @@ class CustomAuthToken(ObtainAuthToken):
 
 
 class ClientProfileView(generics.RetrieveAPIView):
-    queryset = Client.objects.all()
+    queryset = CustomUser.objects.all()
     lookup_field = 'id'
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return Client.objects.get(user=self.request.user)
+        return CustomUser.objects.get(user=self.request.user)
 
 
 
@@ -50,8 +49,8 @@ class UserForgotPasswordView(APIView):
         if not email:
             return Response({'error': 'Email é obrigatório.'}, status=400)
         else:
-            if User.objects.filter(email=email).exists():
-                user = User.objects.filter(email=email).first() 
+            if CustomUser.objects.filter(email=email).exists():
+                user = CustomUser.objects.filter(email=email).first() 
 
                 if user:
                     token = default_token_generator.make_token(user)
@@ -78,8 +77,8 @@ class UserPasswordResetConfirmView(APIView):
     def post(self, request, uidb64, token):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = CustomUser.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
             user = None
 
         if user is not None and default_token_generator.check_token(user, token):

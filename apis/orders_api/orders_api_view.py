@@ -7,8 +7,7 @@ from django.db import transaction
 from orders.models import Order, OrderItem
 from orders.serializers import OrderSerializer, OrderStatusSerializer
 from cart.models import Cart
-from clients.models import Client
-from checkout.models import Address
+from accounts.models import CustomUser, Address
 
 
 # API para criar pedidos a partir do carrinho de compras 
@@ -21,8 +20,8 @@ class OrderCreateView(generics.CreateAPIView):
         user = self.request.user
 
         try:
-            client = Client.objects.get(user=user)
-        except Client.DoesNotExist:
+            client = CustomUser.objects.get(user=user)
+        except CustomUser.DoesNotExist:
             raise ValidationError({'detail': 'Cliente não encontrado.'})
 
     # obter o carrinho do usuário
@@ -64,9 +63,9 @@ class OrderListView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         try:
-            client = Client.objects.get(user=user)
+            client = CustomUser.objects.get(user=user)
             return Order.objects.filter(client=client).order_by('-created_at')
-        except Client.DoesNotExist:
+        except CustomUser.DoesNotExist:
             return Order.objects.none()
 
 
@@ -81,9 +80,9 @@ class OrderDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         user = self.request.user
         try:
-            client = Client.objects.get(user=user)
+            client = CustomUser.objects.get(user=user)
             return Order.objects.filter(client=client)
-        except Client.DoesNotExist:
+        except CustomUser.DoesNotExist:
             return Order.objects.none()
     
     #A combinação de lookup_field e get_queryset garante que: 1) o pedido seja encontrado pelo pk da URL, e 2) ele só seja encontrado se pertencer ao usuário logado. Se não pertencer, resultará em 404 Not Found.

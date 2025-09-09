@@ -7,7 +7,7 @@ from checkout.models import Payment, Shipping
 from checkout.serializer import PaymentSerializer, ShippingSerializer
 from orders.models import Order
 from orders.serializers import OrderSerializer
-from clients.models import Client
+from accounts.models import CustomUser
 
 import mercadopago
 import os
@@ -107,7 +107,7 @@ class PaymentCreateView(generics.CreateAPIView):
         if hasattr(order, 'payment'):
             raise serializers.ValidationError({'order': 'Pagamento já realizado para este pedido.'})
 
-        client = Client.objects.get(user=user)
+        client = CustomUser.objects.get(user=user)
 
         try:
             preference = create_mercadopago_preference(order, client)

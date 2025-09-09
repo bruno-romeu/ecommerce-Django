@@ -1,7 +1,6 @@
 from django.db import models
-from clients.models import Client
-from checkout.models import Address, Shipping, Payment
 from products.models import Product
+from accounts.models import CustomUser, Address
 
 
 class Order(models.Model):
@@ -14,7 +13,7 @@ class Order(models.Model):
         ('canceled', 'Cancelado'),
     ]
 
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='orders')
+    client = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='orders')
     address = models.ForeignKey(Address, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

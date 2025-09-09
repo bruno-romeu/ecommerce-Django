@@ -1,10 +1,11 @@
 from django.contrib import admin
-from .models import Address, Shipping, Payment
+from .models import Shipping, Payment
+from accounts.models import Address
 
 
 @admin.register(Address)
 class AddressAdmin(admin.ModelAdmin):
-    list_display = ('client', 'street', 'number', 'city', 'state', 'zipcode',)
+    list_display = ('user', 'street', 'number', 'city', 'state', 'zipcode',)
     search_fields = ('client__name', 'street', 'city', 'state',)
     list_filter = ('state',)
 

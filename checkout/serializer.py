@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Address, Shipping, Payment
+from .models import Shipping, Payment
+from accounts.models import Address
 
 from orders.models import Order
 
