@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth import logout
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -18,12 +19,35 @@ class UserRegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserClientRegisterSerializer
 
-class CustomAuthToken(ObtainAuthToken):
+class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        token = Token.objects.get(key=response.data['token'])
-        return Response({'token': token.key, 'user_id': token.user_id})
+        data = response.data
+        refresh = data.get("refresh")
 
+        if refresh:
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh,
+                httponly=True,
+                secure=False,  # em dev pode ser False, mas em produção = True
+                samesite="Lax",
+                path="/api/auth/jwt/refresh/",
+            )
+            del data["refresh"]  # não expor mais no corpo
+            response.data = data
+
+        return response
+
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        if not refresh_token:
+            return Response({"error": "Refresh token não encontrado."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        request.data["refresh"] = refresh_token  
+        return super().post(request, *args, **kwargs)
 
 class ClientProfileView(generics.RetrieveAPIView):
     queryset = CustomUser.objects.all()
