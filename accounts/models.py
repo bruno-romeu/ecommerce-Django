@@ -55,6 +55,7 @@ class Address(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='addresses')
     street = models.CharField(max_length=255)
     number = models.CharField(max_length=10)
+    neighborhood = models.CharField(max_length=100, default="Centro")
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=2, choices=ESTADOS_BRASIL)
     zipcode = models.CharField(max_length=10)

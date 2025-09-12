@@ -47,6 +47,8 @@ class ShippingCreateView(generics.CreateAPIView):
 
 def create_mercadopago_preference(order, client):
     access_token = os.getenv("ACCESS_TOKEN")
+    if not access_token:
+        raise Exception("ACCESS_TOKEN do Mercado Pago não encontrado.")
     sdk = mercadopago.SDK(access_token)
 
     items = []
@@ -60,8 +62,9 @@ def create_mercadopago_preference(order, client):
         })
 
     payer = {
-        "name": f"{client.user.first_name} {client.user.last_name}",
-        "email": client.user.email,
+        "name": f"{client.first_name}",
+        "surname": f"{client.last_name}",
+        "email": client.email,
     }
 
     preference_data = {
@@ -77,16 +80,15 @@ def create_mercadopago_preference(order, client):
     }
 
     try:
-        response = sdk.preference().create(preference_data)
+        preference_response = sdk.preference().create(preference_data)
+        preference = preference_response["response"]
     except Exception as e:
-        return Response(
-            {"error": f"Erro ao criar preferência de pagamento com o Mercado Pago: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        print(f"ERRO DO SDK MERCADO PAGO: {e}")
+        raise # Levanta o erro para a view tratar
 
     return {
-        "payment_url": response["response"]["init_point"],
-        "payment_id": response["response"]["id"]
+        "payment_url": preference["init_point"],
+        "preference_id": preference["id"]
     }
 
 
@@ -100,33 +102,38 @@ class PaymentCreateView(generics.CreateAPIView):
         order_id = request.data.get('order')
 
         try:
-            order = Order.objects.get(pk=order_id, client__user=user)
+            order = Order.objects.get(id=order_id, client=user)
         except Order.DoesNotExist:
             raise serializers.ValidationError({'order': 'Pedido não encontrado ou não pertence ao usuário.'})
 
         if hasattr(order, 'payment'):
             raise serializers.ValidationError({'order': 'Pagamento já realizado para este pedido.'})
 
-        client = CustomUser.objects.get(user=user)
 
         try:
-            preference = create_mercadopago_preference(order, client)
+            # Chama a nossa função de ajuda
+            preference_dict = create_mercadopago_preference(order, user)
         except Exception as e:
+            # Captura qualquer erro que a função de ajuda levantar
             return Response(
-                {"error": "Erro ao criar preferência de pagamento com o Mercado Pago."},
+                {"error": f"Erro ao criar preferência de pagamento: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
+        # Cria o nosso registo de Payment local
         payment = Payment.objects.create(
             order=order,
             status='pending',
-            transaction_id=preference["payment_id"],
+            # Guardamos o ID da preferência para referência futura
+            transaction_id=preference_dict["preference_id"], 
             method="MERCADOPAGO"
         )
 
+        # A view constrói a Response final para o front-end
         return Response({
             'payment_id_local': payment.id,
-            'payment_url': preference["payment_url"],
+            'payment_url': preference_dict["payment_url"],
+            'preference_id': preference_dict["preference_id"]
         }, status=status.HTTP_201_CREATED)
 
 class PaymentWebhookView(generics.GenericAPIView):

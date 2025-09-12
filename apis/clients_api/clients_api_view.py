@@ -1,6 +1,5 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
-from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -9,7 +8,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
-from accounts.models import CustomUser
+from accounts.models import CustomUser, Address
 from accounts.serializers import AddressSerializer, ClientSerializer, UserClientRegisterSerializer
 
 
@@ -34,7 +33,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 samesite="Lax",
                 path="/api/auth/jwt/refresh/",
             )
-            del data["refresh"]  # não expor mais no corpo
+            del data["refresh"] 
             response.data = data
 
         return response
@@ -57,6 +56,38 @@ class ClientProfileView(generics.RetrieveAPIView):
 
     def get_object(self):
         return CustomUser.objects.get(user=self.request.user)
+
+class AddressCreateView(generics.CreateAPIView):
+    """
+    View para um utilizador autenticado criar um novo endereço.
+    """
+    queryset = Address.objects.all()
+    serializer_class = AddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class StatesListView(APIView):
+    """
+    View que retorna a lista de estados brasileiros para popular formulários.
+    """
+    def get(self, request, format=None):
+        states = Address.ESTADOS_BRASIL
+        formatted_states = [{'value': abbr, 'label': name} for abbr, name in states]
+        return Response(formatted_states)
+    
+
+class AddressListView(generics.ListAPIView):
+    """
+    View para um utilizador autenticado ver a sua lista de endereços salvos.
+    """
+    serializer_class = AddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Address.objects.filter(user=self.request.user)
 
 
 
