@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-^ujx(^9yl*9lb#_jz##9*d!rz6%)asx*^^(w#ylu8vt@-0@s12
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['balm.onrender.com']
 
 
 # Application definition
