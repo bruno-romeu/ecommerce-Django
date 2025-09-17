@@ -2,5 +2,4 @@
 /core/
 *db.sqlite3
 *.env
-*balm/settings.py
 /media
