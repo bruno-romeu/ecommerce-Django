@@ -30,5 +30,6 @@ class UserClientRegisterSerializer(serializers.ModelSerializer):
         return data 
 
     def create(self, validated_data):
+        validated_data.pop('password2')
         user = CustomUser.objects.create_user(**validated_data)
         return user
