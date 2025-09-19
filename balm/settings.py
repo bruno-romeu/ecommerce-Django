@@ -157,7 +157,7 @@ EMAIL_HOST_USER = 'bruno.rsilva2004@gmail.com'
 EMAIL_HOST_PASSWORD = 'ktefrwmrpgltaspz'
 
 
-CORS_ALLOWED_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [True]
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
