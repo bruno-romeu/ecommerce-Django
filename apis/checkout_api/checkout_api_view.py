@@ -71,9 +71,9 @@ def create_mercadopago_preference(order, client):
         "items": items,
         "payer": payer,
         "back_urls": {
-            "success": "https://bruno-romeu.github.io/portfolio/",
-            "failure": "https://bruno-romeu.github.io/portfolio/#projetos",
-            "pending": "https://bruno-romeu.github.io/portfolio/projetos/revenda.html"
+            "success": "https://frontend-balm.vercel.app/pedido/sucesso",
+            "failure": "https://frontend-balm.vercel.app/pedido/falha",
+            "pending": "https://frontend-balm.vercel.app/pedido/pendente"
         },
         "auto_return": "approved",
         "notification_url": "https://bruno-romeu.github.io/portfolio/index.html"
