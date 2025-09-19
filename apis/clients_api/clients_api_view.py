@@ -55,7 +55,7 @@ class ClientProfileView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        return CustomUser.objects.get(user=self.request.user)
+        return self.request.user
 
 class AddressCreateView(generics.CreateAPIView):
     """
