@@ -4,7 +4,7 @@ from .models import CustomUser, Address
 class AddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = Address
-        fields = ['id', 'street', 'number', 'city', 'state', 'zipcode', 'complement']
+        fields = ['id', 'street', 'number', 'neighborhood', 'city', 'state', 'zipcode', 'complement']
 
 class ClientSerializer(serializers.ModelSerializer):
     addresses = AddressSerializer(many=True, read_only=True)
