@@ -48,9 +48,7 @@ class CookieTokenRefreshView(TokenRefreshView):
         request.data["refresh"] = refresh_token  
         return super().post(request, *args, **kwargs)
 
-class ClientProfileView(generics.RetrieveAPIView):
-    queryset = CustomUser.objects.all()
-    lookup_field = 'id'
+class ClientProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -81,7 +79,7 @@ class StatesListView(APIView):
 
 class AddressListView(generics.ListAPIView):
     """
-    View para um utilizador autenticado ver a sua lista de endereços salvos.
+    View para um usuário autenticado ver a sua lista de endereços salvos.
     """
     serializer_class = AddressSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -89,6 +87,17 @@ class AddressListView(generics.ListAPIView):
     def get_queryset(self):
         return Address.objects.filter(user=self.request.user)
 
+
+class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    View para ler, atualizar ou apagar um endereço específico
+    do utilizador autenticado.
+    """
+    serializer_class = AddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Address.objects.filter(user=self.request.user)
 
 
 class UserLogoutView(APIView):
