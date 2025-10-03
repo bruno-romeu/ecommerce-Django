@@ -68,7 +68,7 @@ class ProductFilter(viewsets.ModelViewSet):
     search_fields = ['name', 'category__name', 'essence__name', 'size__name']
 
 class CategoryListView(generics.ListAPIView):
-    queryset = Category.objects.all()
+    queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
