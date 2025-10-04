@@ -79,3 +79,9 @@ class BestSellerListView(generics.ListAPIView):
     queryset = Product.objects.filter(is_bestseller=True, is_active=True)
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+
+class EssenceListView(generics.ListAPIView):
+    queryset = Essence.objects.filter(is_active=True) # Filtra apenas as ativas
+    serializer_class = EssenceSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]

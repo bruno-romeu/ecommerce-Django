@@ -20,6 +20,15 @@ class Category(models.Model):
 class Essence(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True, verbose_name="Está Ativa?")
+    image = models.ImageField(upload_to="essences/", blank=True, null=True, verbose_name="Imagem da Essência")
+    order = models.PositiveIntegerField(default=0, verbose_name="Ordem de Exibição")
+
+    class Meta:
+        ordering = ['order', 'name']
+        verbose_name = "Essência"
+        verbose_name_plural = "Essências"
+
 
     def __str__(self):
         return self.name
