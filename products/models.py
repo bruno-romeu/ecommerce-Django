@@ -23,6 +23,12 @@ class Essence(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="Está Ativa?")
     image = models.ImageField(upload_to="essences/", blank=True, null=True, verbose_name="Imagem da Essência")
     order = models.PositiveIntegerField(default=0, verbose_name="Ordem de Exibição")
+    slug = models.SlugField(max_length=100, unique=True, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['order', 'name']

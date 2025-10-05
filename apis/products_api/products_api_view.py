@@ -1,10 +1,11 @@
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from products.models import Product, Size, Essence, Category
 from products.serializers import CategorySerializer, EssenceSerializer, ProductSerializer, SizeSerializer
+from products.filters import ProductFilterSet
 
 class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
@@ -59,13 +60,17 @@ class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         return [permission() for permission in permission_classes]
 
     
-class ProductFilter(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.filter(is_active=True) 
     serializer_class = ProductSerializer
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    
+    filterset_class = ProductFilterSet 
+    search_fields = ['name', 'description', 'category__name', 'essence__name']
+    ordering_fields = ['price', 'name', 'created_at'] 
 
-    filter_backends = [DjangoFilterBackend, SearchFilter]
-    filterset_fields = ['name', 'category', 'essence', 'size']
-    search_fields = ['name', 'category__name', 'essence__name', 'size__name']
+    ordering = ['-created_at']
 
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.filter(is_active=True)
