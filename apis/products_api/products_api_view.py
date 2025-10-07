@@ -61,6 +61,7 @@ class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
     
 class ProductViewSet(viewsets.ModelViewSet):
+    lookup_field = 'slug'
     queryset = Product.objects.filter(is_active=True) 
     serializer_class = ProductSerializer
     
