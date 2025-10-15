@@ -73,6 +73,24 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     ordering = ['-created_at']
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        product_serializer = self.get_serializer(instance)
+        product_data = product_serializer.data
+
+        available_sizes = instance.size.all().order_by('order') 
+        size_serializer = SizeSerializer(available_sizes, many=True)
+
+        response_data = {
+            'product': product_data,
+            'available_options': {
+                'sizes': size_serializer.data
+            }
+        }
+        
+        return Response(response_data)
+
 class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.filter(is_active=True)
     serializer_class = CategorySerializer
