@@ -75,20 +75,25 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        
+
         product_serializer = self.get_serializer(instance)
         product_data = product_serializer.data
 
-        available_sizes = instance.size.all().order_by('order') 
-        size_serializer = SizeSerializer(available_sizes, many=True)
+        # Buscar TODOS os tamanhos e essências disponíveis, não apenas o do produto
+        all_sizes = Size.objects.all()
+        all_essences = Essence.objects.all()
+
+        size_serializer = SizeSerializer(all_sizes, many=True)
+        essence_serializer = EssenceSerializer(all_essences, many=True)
 
         response_data = {
             'product': product_data,
             'available_options': {
-                'sizes': size_serializer.data
+                'sizes': size_serializer.data,
+                'essences': essence_serializer.data
             }
         }
-        
+
         return Response(response_data)
 
 class CategoryListView(generics.ListAPIView):
