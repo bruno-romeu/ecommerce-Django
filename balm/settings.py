@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'djoser',
 
-    'adminpanel',
     'accounts',
     'apis',
     'cart',
@@ -61,6 +60,7 @@ INSTALLED_APPS = [
     'clients',
     'orders',
     'products',
+    'site_config',
 ]
 
 MIDDLEWARE = [
