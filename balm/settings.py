@@ -233,7 +233,7 @@ JAZZMIN_SETTINGS = {
 
     "show_sidebar": True,
     "navigation_expanded": False,
-    "hide_apps": ['authtoken', 'auth', 'accounts'],
+    "hide_apps": ['authtoken', 'accounts'],
     "order_with_respect_to": ['products', 'orders', 'site_config', 'checkout', 'cart'],
     
     "icons": {
