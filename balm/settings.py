@@ -40,6 +40,8 @@ ALLOWED_HOSTS = ['balm.onrender.com', 'localhost']
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -207,4 +209,42 @@ STORAGES = {
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
+}
+
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Balm Admin",
+    "site_header": "Balm",
+    "site_brand": "Balm",
+    "welcome_sign": "Bem vinda à página de administração das Velas Balm!",
+    "copyright": "Velas Balm",
+    "search_model": ["auth.User"],
+
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index", "permissions": ["auth.User"]},
+        {"name": "Produtos", "url": "products/product/", "permissions": ["auth.User"]},
+        {"name": "Pedidos", "url": "orders/order/", "permissions": ["auth.User"]},
+        {"name": "Hero Section", "url": "site_config/herosection/", "permissions": ["auth.User"]},
+
+        {"model": "auth.User"},
+
+        {"app": "balm"},
+    ],
+
+    "show_sidebar": True,
+    "navigation_expanded": False,
+    "hide_apps": ['authtoken', 'auth', 'accounts'],
+    "order_with_respect_to": ['products', 'orders', 'site_config', 'checkout', 'cart'],
+    
+    "icons": {
+        "products": "fa-solid fa-tags",
+        "orders": "fa-solid fa-bag-shopping",
+        "site_config": "fa-solid fa-desktop",
+        "checkout": "fa-solid fa-truck",
+        "cart": "fa-solid fa-cart-shopping",
+    },
+
+    "related_modal_active": False,
+
+
 }
