@@ -3,8 +3,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from django.db import transaction
-from django_filters.rest_framework import DjangoFilterBackend
-from django_filters import filters
+from django_filters.rest_framework import DjangoFilterBackend, OrderingFilter
 
 from orders.models import Order, OrderItem
 from orders.serializers import OrderSerializer, OrderStatusSerializer, OrderSerializer
@@ -52,7 +51,7 @@ class OrderCreateView(generics.CreateAPIView):
 class OrderListView(generics.ListAPIView):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['status']
     ordering = ['-created_at']
 
