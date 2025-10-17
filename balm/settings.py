@@ -9,12 +9,12 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
 import os
 import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
+from decouple import config
 # pyright: ignore[reportMissingImports]
 
 load_dotenv()
@@ -102,8 +102,9 @@ WSGI_APPLICATION = 'balm.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600
+        default=config('DATABASE_URL'),
+        conn_max_age=600,
+        ssl_require=True
     )
 }
 
