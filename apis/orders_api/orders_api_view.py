@@ -3,6 +3,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from django.db import transaction
+from django_filters.rest_framework import DjangoFilterBackend
+from django_filters import filters
 
 from orders.models import Order, OrderItem
 from orders.serializers import OrderSerializer, OrderStatusSerializer, OrderSerializer
@@ -30,7 +32,6 @@ class OrderCreateView(generics.CreateAPIView):
         with transaction.atomic():
             total = sum(item.product.price * item.quantity for item in cart_items)
 
-            # CORREÇÃO: Passamos o argumento 'client' em vez de 'user'
             order = serializer.save(client=user, total=total)
 
             for item in cart_items:
@@ -51,11 +52,12 @@ class OrderCreateView(generics.CreateAPIView):
 class OrderListView(generics.ListAPIView):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['status']
+    ordering = ['-created_at']
 
     def get_queryset(self):
-        # CORREÇÃO: Filtramos por 'client' em vez de 'user'
-        return Order.objects.filter(client=self.request.user).order_by('-created_at')
-
+        return Order.objects.filter(client=self.request.user).prefetch_related('orderitem_set')
 
 class OrderDetailView(generics.RetrieveAPIView):
     serializer_class = OrderSerializer
@@ -63,13 +65,34 @@ class OrderDetailView(generics.RetrieveAPIView):
     lookup_field = 'pk'
 
     def get_queryset(self):
-        # CORREÇÃO: Filtramos por 'client' em vez de 'user'
         return Order.objects.filter(client=self.request.user)
+    
+
+class OrderCancelView(generics.UpdateAPIView):
+    """Endpoint para cancelar pedido - apenas o próprio usuário pode cancelar seus pedidos"""
+    serializer_class = OrderStatusSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return Order.objects.filter(client=self.request.user)
+
+    def perform_update(self, serializer):
+        order = self.get_object()
+        
+        # Só permite cancelar pedidos pendentes ou processando
+        if order.status not in ['pending', 'processing']:
+            raise ValidationError(
+                "Este pedido não pode ser cancelado. "
+                f"Status atual: {order.get_status_display()}"
+            )
+        
+        serializer.save()
 
 
 class OrderStatusUpdateView(generics.UpdateAPIView):
+    """Endpoint para admin atualizar status - APENAS PARA ADMIN"""
     queryset = Order.objects.all()
     serializer_class = OrderStatusSerializer
     permission_classes = [permissions.IsAdminUser]
     lookup_field = 'pk'
-    # Nenhuma mudança necessária aqui, a sua lógica original era boa.
