@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 from checkout.models import Payment, Shipping
 from checkout.serializer import PaymentSerializer, ShippingSerializer
-from checkout.utils import calcular_frete_melhor_envio
 from orders.models import Order
 from orders.serializers import OrderSerializer
 from accounts.models import CustomUser

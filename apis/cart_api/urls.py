@@ -1,5 +1,5 @@
 from django.urls import path
-from .cart_api_view import CartItemCreateView, CartItemDestroyView, CartDetailView, CartItemUpdateView
+from .cart_api_view import CartItemCreateView, CartItemDestroyView, CartDetailView, CartItemUpdateView, CalculateShippingView
 
 urlpatterns = [
     path('my-cart/', CartDetailView.as_view(), name='my-cart-detail'),
@@ -9,4 +9,6 @@ urlpatterns = [
     path('item/remove/<int:pk>/', CartItemDestroyView.as_view(), name='cart-item-remove'),
 
     path('items/update/<int:pk>/', CartItemUpdateView.as_view(), name='cart-item-update'),
+
+    path('calculate-shipping/', CalculateShippingView.as_view(), name='calculate-shipping'),
 ]

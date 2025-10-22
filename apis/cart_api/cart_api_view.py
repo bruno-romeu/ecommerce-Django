@@ -1,8 +1,10 @@
-from rest_framework import generics, status
+from rest_framework import generics, status, request
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from products.models import Product, Size
 from cart.models import Cart, CartItem
 from cart.serializers import CartSerializer, CartItemSerializer
+from cart.utils import calcular_frete_melhor_envio
 
 class CartItemCreateView(generics.CreateAPIView):
     queryset = CartItem.objects.all()
@@ -59,5 +61,56 @@ class CartItemUpdateView(generics.UpdateAPIView):
 
     def get_queryset(self):
         return CartItem.objects.filter(cart__user=self.request.user)
-
 #lógica para calcular o total do carrinho está no model Cart 
+
+class CalculateShippingView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, *args, **kwargs):
+        cep_origem = '93800192'
+        cep_destino = request.data.get('cep')
+
+        products_data = []
+        for item in CartItem.objects.filter(cart__user=request.user):
+            product_size = item.size
+
+            try:
+                products_data.append({
+                    'id': item.product.id,
+                    'weight': product_size.weight,
+                    'width': product_size.width,
+                    'height': product_size.height,
+                    'length': product_size.length,
+                    'insurance_value': item.product.price,
+                    'quantity': item.quantity
+                })
+            except Exception as e:
+                raise Exception(f"Erro ao obter dados do produto: {e}")
+            
+        if cep_origem and cep_destino and products_data:
+
+            try:
+                shipping_options = calcular_frete_melhor_envio(
+                    cep_origem=cep_origem, 
+                    cep_destino=cep_destino,
+                    products=products_data
+                )
+
+                services = []
+                for option in shipping_options:
+                    services.append({
+                        'servico':option['name'],
+                        'preco':option['price'],
+                        'prazo':option['delivery_time']
+                    })
+
+
+            except Exception as e:
+                raise Exception(f"Erro ao calcular frete: {e}")
+            
+        return Response(services)
+            
+            
+
+
+    
