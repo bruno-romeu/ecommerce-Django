@@ -1,4 +1,4 @@
-from rest_framework import generics, status, request
+from rest_framework import generics, status, request, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from products.models import Product, Size
@@ -11,22 +11,33 @@ class CartItemCreateView(generics.CreateAPIView):
     serializer_class = CartItemSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        # encontrar ou criar um carrinho para o usuário
-        cart, created = Cart.objects.get_or_create(user=self.request.user)
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
+    def create(self, request, *args, **kwargs):
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        
+        serializer = self.get_serializer(data=request.data) 
+        serializer.is_valid(raise_exception=True)
+        
         product = serializer.validated_data.get('product')
         quantity = serializer.validated_data.get('quantity', 1)
 
-        # verifica se o item já existe no carrinho 
         existing_item = CartItem.objects.filter(cart=cart, product=product).first()
 
         if existing_item:
             existing_item.quantity += quantity
             existing_item.save()
-            return Response(CartItemSerializer(existing_item).data, status=status.HTTP_200_OK)
+            
+            response_serializer = self.get_serializer(existing_item)
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
         else:
             serializer.save(cart=cart)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
 
 
 class CartItemDestroyView(generics.DestroyAPIView):
@@ -63,52 +74,79 @@ class CartItemUpdateView(generics.UpdateAPIView):
         return CartItem.objects.filter(cart__user=self.request.user)
 #lógica para calcular o total do carrinho está no model Cart 
 
-class CalculateShippingView(generics.RetrieveAPIView):
+class CalculateShippingView(views.APIView):
+    '''
+    View que retorna o valor da cotação do frete, com base nos fretes de origem e destino, e os produtos que estão no carrinho do cliente.
+    '''
     permission_classes = [IsAuthenticated]
     
     def post(self, request, *args, **kwargs):
         cep_origem = '93800192'
-        cep_destino = request.data.get('cep')
+        cep_destino = request.data.get('cep', '').strip()
+
+        if not cep_destino:
+            return Response(
+                {"error": "O CEP destino é obrigatório."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         products_data = []
-        for item in CartItem.objects.filter(cart__user=request.user):
-            product_size = item.size
+        services_data = []
+
+        cart_items = CartItem.objects.filter(
+            cart__user=request.user
+        ).select_related('product', 'product__size')
+
+        if not cart_items:
+            return Response(
+                {"error": "Seu carrinho está vazio."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        for item in cart_items:
+            if not item.product or not item.product.size:
+                continue
+            product_size = item.product.size
 
             try:
                 products_data.append({
-                    'id': item.product.id,
                     'weight': product_size.weight,
                     'width': product_size.width,
                     'height': product_size.height,
                     'length': product_size.length,
-                    'insurance_value': item.product.price,
                     'quantity': item.quantity
                 })
             except Exception as e:
-                raise Exception(f"Erro ao obter dados do produto: {e}")
+                return Response(
+                    {"error": f"Erro ao processar o produto ID {item.product.id}: {e}"
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
         if cep_origem and cep_destino and products_data:
-
+        
             try:
                 shipping_options = calcular_frete_melhor_envio(
                     cep_origem=cep_origem, 
                     cep_destino=cep_destino,
-                    products=products_data
+                    product_list=products_data
                 )
 
-                services = []
                 for option in shipping_options:
-                    services.append({
-                        'servico':option['name'],
-                        'preco':option['price'],
-                        'prazo':option['delivery_time']
-                    })
+                    if 'price' in option and 'delivery_time' in option:
+                        services_data.append({
+                            'servico':option['name'],
+                            'preco':option['price'],
+                            'prazo':option['delivery_time']
+                        })
 
 
             except Exception as e:
-                raise Exception(f"Erro ao calcular frete: {e}")
+                return Response(
+                    {"error": f"Erro ao calcular frete com a API: {e}"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
             
-        return Response(services)
+        return Response(services_data, status=status.HTTP_200_OK)
             
             
 

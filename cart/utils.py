@@ -1,10 +1,15 @@
 import requests
 from decouple import config
 
-def calcular_frete_melhor_envio(cep_origem, cep_destino, id, peso, altura, largura, comprimento, value, quantity):
+def calcular_frete_melhor_envio(cep_origem, cep_destino, product_list):
+            '''
+            Função que conecta com a API do Melhor Envio para fazer a cotação do frete, com base nos produtos que estão no carrinho do cliente, e o cep de origem e destino informado.
+            '''
             url = "https://www.melhorenvio.com.br/api/v2/me/shipment/calculate"
+
+            access_token = config("FRETE_API_KEY")
             headers = {
-                'Authorization': config("FRETE_API_KEY"),
+                'Authorization': f'Bearer {access_token}',
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 "User-Agent": "suporte.balm@gmail.com"
@@ -13,18 +18,8 @@ def calcular_frete_melhor_envio(cep_origem, cep_destino, id, peso, altura, largu
             data = {
                 'from': {'postal_code': cep_origem},
                 'to': {'postal_code': cep_destino},
-                'products':[
-                    {
-                        'id': id,
-                        'weight': peso,
-                        'width': largura,
-                        'height': altura,
-                        'length': comprimento,
-                        #Valor do produto que será utilizado para o cálculo do seguro do frete
-                        'insurance_value': value,
-                        'quantity': quantity
-                    }
-                ],
+                'products': product_list,
+                #transformar o 'services' para conseguir definir no admin no futuro
                 'services': '1,2,3,8,13',
             }
 

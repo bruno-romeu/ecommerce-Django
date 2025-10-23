@@ -24,9 +24,9 @@ class EssenceSerializer(serializers.ModelSerializer):
         model = Essence
         fields = '__all__'
 
-    def get_image_url(self, obj):
-        if obj.image:
-            return self.context['request'].build_absolute_uri(obj.image.url)
+    def get_image_url(self, essence):
+        if essence.image:
+            return self.context['request'].build_absolute_uri(essence.image.url)
         return None
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -41,9 +41,8 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_image(self, product):
-        request = self.context.get('request')
         if product.image:
+            request = self.context['request']
             return request.build_absolute_uri(product.image.url)
-        
         return None
 
