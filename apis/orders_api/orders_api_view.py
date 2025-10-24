@@ -57,7 +57,7 @@ class OrderListView(generics.ListAPIView):
     ordering = ['-created_at']
 
     def get_queryset(self):
-        return Order.objects.filter(client=self.request.user).prefetch_related('orderitem_set')
+        return Order.objects.filter(client=self.request.user)
 
 class OrderDetailView(generics.RetrieveAPIView):
     serializer_class = OrderSerializer
