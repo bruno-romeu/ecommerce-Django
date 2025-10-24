@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Order, OrderItem
 from products.serializers import ProductSerializer
+from accounts.models import Address
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
@@ -32,10 +33,15 @@ class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(source='orderitem_set', many=True, read_only=True)
     shipping = serializers.SerializerMethodField()
     payment = serializers.SerializerMethodField()
+
+    address = serializers.PrimaryKeyRelatedField(
+        queryset=Address.objects.all(),
+        write_only=True  
+    )
     
     class Meta:
         model = Order
-        fields = ['id', 'status', 'total', 'created_at', 'items', 'shipping', 'payment']
+        fields = ['id', 'address', 'status', 'total', 'created_at', 'items', 'shipping', 'payment']
         read_only_fields = ['id', 'total', 'created_at', 'items', 'shipping', 'payment']
 
     def get_shipping(self, obj):
@@ -60,6 +66,15 @@ class OrderSerializer(serializers.ModelSerializer):
                 'paid_at': obj.payment.paid_at,
             }
         return None
+    
+    def validate_address(self, value):
+        """Garante que o endereço pertence ao usuário logado"""
+        user = self.context['request'].user
+        if value.user != user:
+            raise serializers.ValidationError(
+                "Este endereço não pertence a você."
+            )
+        return value
 
 
 class OrderStatusSerializer(serializers.ModelSerializer):

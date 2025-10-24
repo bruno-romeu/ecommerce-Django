@@ -44,7 +44,7 @@ class OrderCreateView(generics.CreateAPIView):
 
             cart_items.delete()
         
-        final_serializer = OrderSerializer(order)
+        final_serializer = OrderSerializer(order, context={'request': request})
         headers = self.get_success_headers(final_serializer.data)
         return Response(final_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
