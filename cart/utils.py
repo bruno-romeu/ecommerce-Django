@@ -5,7 +5,7 @@ def calcular_frete_melhor_envio(cep_origem, cep_destino, product_list):
             '''
             Função que conecta com a API do Melhor Envio para fazer a cotação do frete, com base nos produtos que estão no carrinho do cliente, e o cep de origem e destino informado.
             '''
-            url = "https://www.melhorenvio.com.br/api/v2/me/shipment/calculate"
+            url = "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate"
 
             access_token = config("FRETE_API_KEY")
             headers = {
