@@ -30,7 +30,7 @@ class PaymentDetailSerializer(serializers.Serializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(source='orderitem_set', many=True, read_only=True)
+    items = OrderItemSerializer(many=True, read_only=True)
     shipping = serializers.SerializerMethodField()
     payment = serializers.SerializerMethodField()
 
