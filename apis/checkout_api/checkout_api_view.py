@@ -3,17 +3,20 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from dotenv import load_dotenv
 
+from apis.utils.security_logger import log_security_event
 from checkout.models import Payment, Shipping
 from checkout.serializer import PaymentSerializer, ShippingSerializer
 from orders.models import Order
-from orders.serializers import OrderSerializer
-from accounts.models import CustomUser
 
 import mercadopago
 import os
+from django.utils.decorators import method_decorator
+from apis.decorators import ratelimit_payment, ratelimit_shipping
 
 load_dotenv()
 
+
+@method_decorator(ratelimit_shipping, name='dispatch')
 class ShippingCreateView(generics.CreateAPIView):
     queryset = Shipping.objects.all()
     serializer_class = ShippingSerializer
@@ -62,9 +65,9 @@ def create_mercadopago_preference(order, client):
         "items": items,
         "payer": payer,
         "back_urls": {
-            "success": "https://frontend-balm.vercel.app/pedido/sucesso",
-            "failure": "https://frontend-balm.vercel.app/pedido/falha",
-            "pending": "https://frontend-balm.vercel.app/pedido/pendente"
+            "success": f"{os.getenv("FRONTEND_URL")}/pedido/sucesso",
+            "failure": f"{os.getenv("FRONTEND_URL")}/pedido/falha",
+            "pending": f"{os.getenv("FRONTEND_URL")}/pedido/pendente"
         },
         "auto_return": "approved",
         "notification_url": "https://bruno-romeu.github.io/portfolio/index.html"
@@ -83,6 +86,8 @@ def create_mercadopago_preference(order, client):
     }
 
 
+
+@method_decorator(ratelimit_payment, name='dispatch')
 class PaymentCreateView(generics.CreateAPIView):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
@@ -91,6 +96,19 @@ class PaymentCreateView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         user = request.user
         order_id = request.data.get('order')
+
+        try:
+            order = Order.objects.get(id=order_id, client=user)
+        except Order.DoesNotExist:
+            # ← NOVO: Log de tentativa de acesso a pedido de outro usuário
+            log_security_event(
+                event_type='UNAUTHORIZED_ORDER_ACCESS',
+                request=request,
+                user=user,
+                details=f'Tentativa de criar pagamento para pedido #{order_id} que não pertence ao usuário',
+                level='error'
+            )
+            raise serializers.ValidationError({'order': 'Pedido não encontrado.'})
 
         try:
             order = Order.objects.get(id=order_id, client=user)

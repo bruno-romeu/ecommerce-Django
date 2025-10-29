@@ -9,8 +9,11 @@ from django.db import transaction
 from orders.models import Order, OrderItem
 from orders.serializers import OrderSerializer, OrderStatusSerializer, OrderSerializer
 from cart.models import Cart, CartItem
-from accounts.models import Address
+from django.utils.decorators import method_decorator
+from apis.decorators import ratelimit_create_order
 
+
+@method_decorator(ratelimit_create_order, name='dispatch')
 class OrderCreateView(generics.CreateAPIView):
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -86,6 +89,14 @@ class OrderCancelView(generics.UpdateAPIView):
                 "Este pedido não pode ser cancelado. "
                 f"Status atual: {order.get_status_display()}"
             )
+        
+        log_security_event(
+            event_type='ORDER_CANCELED',
+            request=self.request,
+            user=self.request.user,
+            details=f'Pedido #{order.id} cancelado pelo usuário',
+            level='info'
+        )
         
         serializer.save()
 

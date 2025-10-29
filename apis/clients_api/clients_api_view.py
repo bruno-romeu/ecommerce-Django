@@ -10,33 +10,60 @@ from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
 from accounts.models import CustomUser, Address
 from accounts.serializers import AddressSerializer, ClientSerializer, UserClientRegisterSerializer
+from django.utils.decorators import method_decorator
+from apis.decorators import ratelimit_login, ratelimit_register, ratelimit_password_reset, ratelimit_profile_update, ratelimit_address
+from apis.utils.security_logger import log_security_event
+
 
 
 #APIS Views de clientes e usuários
 
+@method_decorator(ratelimit_register, name='dispatch')
 class UserRegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserClientRegisterSerializer
 
+
+@method_decorator(ratelimit_login, name='dispatch')
 class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        data = response.data
-        refresh = data.get("refresh")
-
-        if refresh:
-            response.set_cookie(
-                key="refresh_token",
-                value=refresh,
-                httponly=True,
-                secure=False,  # em dev pode ser False, mas em produção = True
-                samesite="Lax",
-                path="/api/auth/jwt/refresh/",
+        try:
+            response = super().post(request, *args, **kwargs)
+            
+            if response.status_code == 200:
+                email = request.data.get('email', 'Unknown')
+                log_security_event(
+                    event_type='LOGIN_SUCCESS',
+                    request=request,
+                    user=request.user if hasattr(request, 'user') else None,
+                    details=f'Login realizado com sucesso {email}',
+                    level='info'
+                )
+            
+            data = response.data
+            refresh = data.get("refresh")
+            if refresh:
+                response.set_cookie(
+                    key="refresh_token",
+                    value=refresh,
+                    httponly=True,
+                    secure=False,
+                    samesite="Lax",
+                    path="/api/auth/jwt/refresh/",
+                )
+                del data["refresh"]
+                response.data = data
+            
+            return response
+            
+        except Exception as e:
+            log_security_event(
+                event_type='LOGIN_FAILED',
+                request=request,
+                details=f'Credenciais inválidas',
+                level='warning'
             )
-            del data["refresh"] 
-            response.data = data
-
-        return response
+            raise
 
 class CookieTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
@@ -47,7 +74,9 @@ class CookieTokenRefreshView(TokenRefreshView):
 
         request.data["refresh"] = refresh_token  
         return super().post(request, *args, **kwargs)
+    
 
+@method_decorator(ratelimit_profile_update, name='dispatch')
 class ClientProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -55,6 +84,8 @@ class ClientProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
+
+@method_decorator(ratelimit_address, name='dispatch')
 class AddressCreateView(generics.CreateAPIView):
     """
     View para um utilizador autenticado criar um novo endereço.
@@ -88,6 +119,7 @@ class AddressListView(generics.ListAPIView):
         return Address.objects.filter(user=self.request.user)
 
 
+@method_decorator(ratelimit_address, name='dispatch')
 class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     View para ler, atualizar ou apagar um endereço específico
@@ -106,7 +138,9 @@ class UserLogoutView(APIView):
             Token.objects.filter(user=request.user).delete()
         logout(request)
         return Response({'message': 'Logout realizado.'}, status=200)
-    
+
+
+@method_decorator(ratelimit_password_reset, name='dispatch')
 class UserForgotPasswordView(APIView):
     def post(self, request):
         email = request.data.get('email')
@@ -137,6 +171,7 @@ class UserForgotPasswordView(APIView):
 
 
 # API que valida o UID e Token para redefinir a senha
+@method_decorator(ratelimit_password_reset, name='dispatch')
 class UserPasswordResetConfirmView(APIView):
     def post(self, request, uidb64, token):
         try:

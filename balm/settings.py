@@ -75,6 +75,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'apis.middleware.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'balm.urls'
@@ -157,7 +158,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'bruno.rsilva2004@gmail.com'
-EMAIL_HOST_PASSWORD = 'ktefrwmrpgltaspz'
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
 
 CORS_ALLOWED_ORIGINS = [
@@ -248,4 +249,122 @@ JAZZMIN_SETTINGS = {
     "related_modal_active": False,
 
 
+}
+
+RATELIMIT_ENABLE = True 
+RATELIMIT_USE_CACHE = 'default'  
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
+
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} | {name} | {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        'security': {
+            'format': '[SEGURANÇA] {asctime} | {levelname} | IP: {extra[ip]} | User: {extra[user]} | {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
+    
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        
+        'file_general': {
+            'level': 'INFO',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'general.log'),
+            'maxBytes': 1024 * 1024 * 10,  
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        
+        'file_errors': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'errors.log'),
+            'maxBytes': 1024 * 1024 * 10,  
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        
+        'file_security': {
+            'level': 'WARNING',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOGS_DIR, 'security.log'),
+            'maxBytes': 1024 * 1024 * 10,  
+            'backupCount': 10,  
+            'formatter': 'verbose',
+        },
+        
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'filters': ['require_debug_false'],
+        },
+    },
+    
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file_general'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        
+        'django.request': {
+            'handlers': ['file_errors', 'mail_admins'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        
+        'security': {
+            'handlers': ['file_security', 'console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        
+        'apis': {
+            'handlers': ['console', 'file_general'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+    
+    'root': {
+        'handlers': ['console', 'file_general'],
+        'level': 'INFO',
+    },
 }

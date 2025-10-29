@@ -1,11 +1,14 @@
 from rest_framework import generics, status, request, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from products.models import Product, Size
 from cart.models import Cart, CartItem
 from cart.serializers import CartSerializer, CartItemSerializer
 from cart.utils import calcular_frete_melhor_envio
+from django.utils.decorators import method_decorator
+from apis.decorators import ratelimit_cart
 
+
+@method_decorator(ratelimit_cart, name='dispatch')
 class CartItemCreateView(generics.CreateAPIView):
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
