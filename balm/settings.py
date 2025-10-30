@@ -191,6 +191,11 @@ DJOSER = {
 
 CORS_ALLOW_CREDENTIALS = True
 
+SESSION_COOKIE_SECURE = True  
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://frontend-balm.vercel.app/",

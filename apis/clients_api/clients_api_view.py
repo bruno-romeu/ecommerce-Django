@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
+from datetime import timedelta
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth import logout
 from django.contrib.auth.tokens import default_token_generator
@@ -40,20 +41,35 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                     level='info'
                 )
             
-            data = response.data
-            refresh = data.get("refresh")
-            if refresh:
-                response.set_cookie(
-                    key="refresh_token",
-                    value=refresh,
-                    httponly=True,
-                    secure=False,
-                    samesite="Lax",
-                    path="/api/auth/jwt/refresh/",
-                )
-                del data["refresh"]
+                data = response.data
+                access_token = data.get("access")
+                refresh_token = data.get("refresh")
+                if access_token:
+                    response.set_cookie(
+                        key="access_token",
+                        value=access_token,
+                        httponly=True,
+                        secure=True,
+                        samesite="Lax",
+                        max_age=int(timedelta(minutes=15).total_seconds()),
+                        path="/",
+                    )
+                    del data["access"]
+
+                if refresh_token:
+                        response.set_cookie(
+                            key="refresh_token",
+                            value=refresh_token,
+                            httponly=True,
+                            secure=True, 
+                            samesite="Lax",
+                            max_age=int(timedelta(days=7).total_seconds()),  
+                            path="/",  
+                        )
+                        del data["refresh"]
+                    
                 response.data = data
-            
+                
             return response
             
         except Exception as e:
@@ -72,8 +88,27 @@ class CookieTokenRefreshView(TokenRefreshView):
         if not refresh_token:
             return Response({"error": "Refresh token não encontrado."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        request.data["refresh"] = refresh_token  
-        return super().post(request, *args, **kwargs)
+        request.data._mutable = True
+        request.data["refresh"] = refresh_token 
+        request.data._mutable = False
+
+        response = super().post(request, *args, **kwargs)    
+
+        if response.status_code == 200:
+            new_access = response.data.get("access")
+            if new_access:
+                response.set_cookie(
+                    key="access_token",
+                    value=new_access,
+                    httponly=True,
+                    secure=True,  
+                    samesite="Lax",
+                    max_age=int(timedelta(minutes=15).total_seconds()),
+                    path="/",
+                )
+                del response.data["access"]
+        
+        return response
     
 
 @method_decorator(ratelimit_profile_update, name='dispatch')
