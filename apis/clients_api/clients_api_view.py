@@ -49,7 +49,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                         key="access_token",
                         value=access_token,
                         httponly=True,
-                        secure=False,#mudar para true em prdoução
+                        secure=True,#mudar para true em prdoução
                         samesite="Lax",
                         max_age=int(timedelta(minutes=15).total_seconds()),
                         path="/",
@@ -61,7 +61,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                             key="refresh_token",
                             value=refresh_token,
                             httponly=True,
-                            secure=False, #mudar para true em prdoução
+                            secure=True, #mudar para true em prdoução
                             samesite="Lax",
                             max_age=int(timedelta(days=7).total_seconds()),  
                             path="/",  
@@ -86,30 +86,59 @@ class CookieTokenRefreshView(TokenRefreshView):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
-            return Response({"error": "Refresh token não encontrado."}, status=status.HTTP_401_UNAUTHORIZED)
+            log_security_event(
+                event_type='TOKEN_REFRESH_FAILED',
+                request=request,
+                details='Refresh token não encontrado nos cookies',
+                level='warning'
+            )
+            return Response(
+                {"error": "Refresh token não encontrado."}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
-        request.data._mutable = True
-        request.data["refresh"] = refresh_token 
-        request.data._mutable = False
-
-        response = super().post(request, *args, **kwargs)    
-
-        if response.status_code == 200:
-            new_access = response.data.get("access")
-            if new_access:
-                response.set_cookie(
-                    key="access_token",
-                    value=new_access,
-                    httponly=True,
-                    secure=False,  #mudar para true em prdoução
-                    samesite="Lax",
-                    max_age=int(timedelta(minutes=15).total_seconds()),
-                    path="/",
-                )
-                del response.data["access"]
+        serializer = self.get_serializer(data={"refresh": refresh_token})
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            log_security_event(
+                event_type='TOKEN_REFRESH_FAILED',
+                request=request,
+                details=f'Token inválido ou expirado: {str(e)}',
+                level='warning'
+            )
+            return Response(
+                {"error": "Token inválido ou expirado."}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        new_access = serializer.validated_data.get("access")
+        
+        log_security_event(
+            event_type='TOKEN_REFRESH_SUCCESS',
+            request=request,
+            details='Token renovado com sucesso',
+            level='info'
+        )
+        
+        response = Response(
+            {"message": "Token renovado com sucesso"}, 
+            status=status.HTTP_200_OK
+        )
+        
+        if new_access:
+            response.set_cookie(
+                key="access_token",
+                value=new_access,
+                httponly=True,
+                secure=True,
+                samesite="Lax",
+                max_age=int(timedelta(minutes=15).total_seconds()),
+                path="/",
+            )
         
         return response
-    
 
 @method_decorator(ratelimit_profile_update, name='dispatch')
 class ClientProfileView(generics.RetrieveUpdateAPIView):
