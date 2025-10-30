@@ -49,7 +49,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                         key="access_token",
                         value=access_token,
                         httponly=True,
-                        secure=True,
+                        secure=False,#mudar para true em prdoução
                         samesite="Lax",
                         max_age=int(timedelta(minutes=15).total_seconds()),
                         path="/",
@@ -61,7 +61,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                             key="refresh_token",
                             value=refresh_token,
                             httponly=True,
-                            secure=True, 
+                            secure=False, #mudar para true em prdoução
                             samesite="Lax",
                             max_age=int(timedelta(days=7).total_seconds()),  
                             path="/",  
@@ -101,7 +101,7 @@ class CookieTokenRefreshView(TokenRefreshView):
                     key="access_token",
                     value=new_access,
                     httponly=True,
-                    secure=True,  
+                    secure=False,  #mudar para true em prdoução
                     samesite="Lax",
                     max_age=int(timedelta(minutes=15).total_seconds()),
                     path="/",
@@ -170,9 +170,13 @@ class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
 class UserLogoutView(APIView):
     def post(self, request):
         if request.user.is_authenticated:
-            Token.objects.filter(user=request.user).delete()
-        logout(request)
-        return Response({'message': 'Logout realizado.'}, status=200)
+            logout(request)
+        response = Response({'message': 'Logout realizado.'}, status=200)
+        
+        response.delete_cookie('access_token', path='/')
+        response.delete_cookie('refresh_token', path='/')
+        
+        return response
 
 
 @method_decorator(ratelimit_password_reset, name='dispatch')
