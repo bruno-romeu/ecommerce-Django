@@ -276,7 +276,7 @@ class UserDetailView(APIView):
     View para retornar os dados do usuário autenticado.
     O JWTAuthCookieMiddleware cuida da autenticação lendo o cookie.
     """
-    permission_classes = [IsAuthenticated]  # Exige que o usuário esteja logado
+    permission_classes = [permissions.IsAuthenticated]  # Exige que o usuário esteja logado
 
     def get(self, request, *args, **kwargs):
         """
