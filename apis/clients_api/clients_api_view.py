@@ -1,14 +1,17 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
-from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from datetime import timedelta
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken
 from django.contrib.auth import logout
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.core.mail import send_mail
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 from accounts.models import CustomUser, Address
 from accounts.serializers import AddressSerializer, ClientSerializer, UserClientRegisterSerializer
 from django.utils.decorators import method_decorator
@@ -81,7 +84,13 @@ class CookieTokenObtainPairView(TokenObtainPairView):
             )
             raise
 
+
+@method_decorator(ratelimit_login, name='dispatch')
 class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Substitui a TokenRefreshView padrão para ler o refresh_token 
+    de um cookie HttpOnly e setar o novo access_token em um cookie.
+    """
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get("refresh_token")
 
@@ -97,47 +106,49 @@ class CookieTokenRefreshView(TokenRefreshView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        serializer = self.get_serializer(data={"refresh": refresh_token})
+        mutable_data = request.data.copy()
+        mutable_data['refresh'] = refresh_token
         
+        serializer = self.get_serializer(data=mutable_data)
+
         try:
             serializer.is_valid(raise_exception=True)
-        except Exception as e:
-            log_security_event(
-                event_type='TOKEN_REFRESH_FAILED',
-                request=request,
-                details=f'Token inválido ou expirado: {str(e)}',
-                level='warning'
-            )
-            return Response(
-                {"error": "Token inválido ou expirado."}, 
-                status=status.HTTP_401_UNAUTHORIZED
-            )
+        except InvalidToken as e:
+            log_security_event('REFRESH_INVALID', request, details=str(e))
+            return Response({'error': 'Refresh token inválido ou expirado.'}, status=status.HTTP_401_UNAUTHORIZED)
         
-        new_access = serializer.validated_data.get("access")
+        data = serializer.validated_data
+        access_token = data.get('access')
         
-        log_security_event(
-            event_type='TOKEN_REFRESH_SUCCESS',
-            request=request,
-            details='Token renovado com sucesso',
-            level='info'
+        response = Response(status=status.HTTP_200_OK)
+        
+        access_expires_seconds = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds()
+        access_expires = timezone.now() + timedelta(seconds=access_expires_seconds)
+        
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,  #True em produção
+            samesite="Lax",
+            expires=access_expires
         )
         
-        response = Response(
-            {"message": "Token renovado com sucesso"}, 
-            status=status.HTTP_200_OK
-        )
-        
-        if new_access:
+        if 'refresh' in data:
+            refresh_token_new = data.get('refresh')
+            refresh_expires_seconds = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds()
+            refresh_expires = timezone.now() + timedelta(seconds=refresh_expires_seconds)
+            
             response.set_cookie(
-                key="access_token",
-                value=new_access,
+                key="refresh_token",
+                value=refresh_token_new,
                 httponly=True,
-                secure=True,
+                secure=True,  # True em produção
                 samesite="Lax",
-                max_age=int(timedelta(minutes=15).total_seconds()),
-                path="/",
+                expires=refresh_expires
             )
         
+        response.data = {'message': 'Token atualizado com sucesso.'} 
         return response
 
 @method_decorator(ratelimit_profile_update, name='dispatch')
