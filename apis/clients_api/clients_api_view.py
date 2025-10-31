@@ -269,3 +269,31 @@ class UserPasswordResetConfirmView(APIView):
                 return Response({'error': 'A nova senha é obrigatória.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'error': 'Token inválido ou expirado.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+class UserDetailView(APIView):
+    """
+    View para retornar os dados do usuário autenticado.
+    O JWTAuthCookieMiddleware cuida da autenticação lendo o cookie.
+    """
+    permission_classes = [IsAuthenticated]  # Exige que o usuário esteja logado
+
+    def get(self, request, *args, **kwargs):
+        """
+        Retorna os dados do usuário logado (request.user).
+        """
+        try:
+            serializer = ClientSerializer(request.user) 
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            log_security_event(
+                'USER_DETAIL_FAIL', 
+                request, 
+                user=request.user, 
+                details=f"Erro ao serializar usuário: {str(e)}"
+            )
+            return Response(
+                {'error': 'Erro ao obter dados do usuário.'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

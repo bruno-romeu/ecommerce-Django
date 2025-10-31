@@ -1,5 +1,5 @@
 from django.urls import path
-from apis.clients_api.clients_api_view import UserRegisterView, CookieTokenObtainPairView, ClientProfileView, UserForgotPasswordView, UserLogoutView, UserPasswordResetConfirmView, CookieTokenRefreshView, AddressCreateView, StatesListView, AddressListView, AddressDetailView
+from apis.clients_api.clients_api_view import UserRegisterView, CookieTokenObtainPairView, ClientProfileView, UserForgotPasswordView, UserLogoutView, UserPasswordResetConfirmView, CookieTokenRefreshView, AddressCreateView, StatesListView, AddressListView, AddressDetailView, UserDetailView
 
 urlpatterns = [
     path('register/', UserRegisterView.as_view(), name='user-register'),
@@ -13,5 +13,6 @@ urlpatterns = [
     path('reset-password/<str:uidb64>/<str:token>/', UserPasswordResetConfirmView.as_view(), name='reset-password-confirm'),
     path('auth/jwt/create/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/jwt/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/users/me/', UserDetailView.as_view(), name='user_detail'),
 
 ]
