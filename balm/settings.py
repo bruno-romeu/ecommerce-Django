@@ -76,6 +76,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apis.middleware.RateLimitMiddleware',
+    'apis.middleware.JWTAuthCookieMiddleware',
+
 ]
 
 ROOT_URLCONF = 'balm.urls'
