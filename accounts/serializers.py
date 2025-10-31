@@ -11,7 +11,10 @@ class ClientSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = '__all__'
+        fields = (
+            'id', 'email', 'first_name', 'last_name', 
+            'cpf', 'phone_number', 'birthday', 'addresses'
+            )
 
 
 class UserClientRegisterSerializer(serializers.ModelSerializer):
