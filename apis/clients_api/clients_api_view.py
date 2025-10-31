@@ -53,7 +53,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                         value=access_token,
                         httponly=True,
                         secure=True,#mudar para true em prdoução
-                        samesite="Lax",
+                        samesite=None,
                         max_age=int(timedelta(minutes=15).total_seconds()),
                         path="/",
                     )
@@ -65,7 +65,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                             value=refresh_token,
                             httponly=True,
                             secure=True, #mudar para true em prdoução
-                            samesite="Lax",
+                            samesite=None,
                             max_age=int(timedelta(days=7).total_seconds()),  
                             path="/",  
                         )
@@ -130,7 +130,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             value=access_token,
             httponly=True,
             secure=True,  #True em produção
-            samesite="Lax",
+            samesite=None,
             expires=access_expires
         )
         
@@ -144,7 +144,7 @@ class CookieTokenRefreshView(TokenRefreshView):
                 value=refresh_token_new,
                 httponly=True,
                 secure=True,  # True em produção
-                samesite="Lax",
+                samesite=None,
                 expires=refresh_expires
             )
         
