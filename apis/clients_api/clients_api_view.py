@@ -47,6 +47,9 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 data = response.data
                 access_token = data.get("access")
                 refresh_token = data.get("refresh")
+                access_expires = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+                refresh_expires = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+
                 if access_token:
                     response.set_cookie(
                         key="access_token",
@@ -54,7 +57,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                         httponly=True,
                         secure=True,#mudar para true em prdoução
                         samesite="None",
-                        max_age=int(timedelta(minutes=15).total_seconds()),
+                        max_age=int(timedelta(minutes=access_expires.total_seconds()/60).total_seconds())   ,
                         path="/",
                     )
                     del data["access"]
@@ -66,7 +69,7 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                             httponly=True,
                             secure=True, #mudar para true em prdoução
                             samesite="None",
-                            max_age=int(timedelta(days=7).total_seconds()),  
+                            max_age=int(timedelta(days=refresh_expires.total_seconds()/86400).total_seconds()),
                             path="/",  
                         )
                         del data["refresh"]
@@ -276,8 +279,7 @@ class UserDetailView(APIView):
     View para retornar os dados do usuário autenticado.
     O JWTAuthCookieMiddleware cuida da autenticação lendo o cookie.
     """
-    permission_classes = [permissions.IsAuthenticated]  # Exige que o usuário esteja logado
-
+    permission_classes = [permissions.IsAuthenticated] 
     def get(self, request, *args, **kwargs):
         """
         Retorna os dados do usuário logado (request.user).
