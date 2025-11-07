@@ -1,11 +1,12 @@
 from rest_framework import generics, status, serializers
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from dotenv import load_dotenv
 
 from apis.utils.security_logger import log_security_event
-from checkout.models import Payment, Shipping
-from checkout.serializer import PaymentSerializer, ShippingSerializer
+from checkout.models import Payment, Shipping, Coupon
+from checkout.serializer import PaymentSerializer, ShippingSerializer, CouponValidationSerializer
 from orders.models import Order
 
 import mercadopago
@@ -14,6 +15,47 @@ from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_payment, ratelimit_shipping
 
 load_dotenv()
+
+
+
+class ValidateCouponView(APIView):
+    """
+    View para validar cupons de desconto
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = CouponValidationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        code = serializer.validated_data['code'].upper()
+        order_total = serializer.validated_data['order_total']
+        
+        try:
+            coupon = Coupon.objects.get(code=code)
+        except Coupon.DoesNotExist:
+            return Response(
+                {'error': 'Cupom inválido'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        is_valid, message = coupon.is_valid(order_total)
+        
+        if not is_valid:
+            return Response(
+                {'error': message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        discount_amount = coupon.calculate_discount(order_total)
+        
+        return Response({
+            'valid': True,
+            'code': coupon.code,
+            'discount_percentage': float(coupon.discount_percentage),
+            'discount_amount': discount_amount,
+            'new_total': float(order_total) - discount_amount
+        }, status=status.HTTP_200_OK)
 
 
 @method_decorator(ratelimit_shipping, name='dispatch')
