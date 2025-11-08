@@ -32,11 +32,12 @@ SECRET_KEY = os.getenv("SETTINGS_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config(
-    'ALLOWED_HOSTS',
-    default='https://balm.onrender.com,localhost',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+ALLOWED_HOSTS = [
+    'localhost', 
+    '127.0.0.1',
+    'https://frontend-balm.vercel.app',
+    'https://balm.onrender.com'
+]
 
 
 
@@ -193,7 +194,7 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000,https://frontend-balm.vercel.app',
+    default='http://localhost:3000,https://frontend-balm.vercel.app,https://balm.onrender.com',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
