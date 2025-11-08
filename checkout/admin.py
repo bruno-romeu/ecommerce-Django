@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Shipping, Payment
+from .models import Shipping, Payment, Coupon
 from accounts.models import Address
 
 
@@ -28,3 +28,9 @@ class PaymentAdmin(admin.ModelAdmin):
     def get_amount(self, obj):
         return obj.order.total if obj.order else 'N/A'
     get_amount.short_description = 'Valor do Pagamento'
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_percentage', 'is_active','valid_from', 'valid_until', 'usage_limit', 'times_used', 'minimum_purchase','created_at')
+    search_fields = ('code',)
+    list_filter = ('is_active', 'valid_from', 'valid_until')
