@@ -223,6 +223,33 @@ DJOSER = {
 
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS',
+]
+
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:3000, https://frontend-balm.vercel.app',
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
+
 CSRF_COOKIE_HTTPONLY = False  # Frontend precisa ler
 SESSION_COOKIE_SECURE = True  
 CSRF_COOKIE_SECURE = not DEBUG
@@ -230,10 +257,6 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 86400
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "https://frontend-balm.vercel.app/",
-]
 
 
 

@@ -82,10 +82,10 @@ class ShippingCreateView(generics.CreateAPIView):
 
 
 def create_mercadopago_preference(order, client):
-    access_token = os.getenv("ACCESS_TOKEN")
-    if not access_token:
+    mercadopago_access_token = os.getenv("MERCADOPAGO_ACCESS_TOKEN")
+    if not mercadopago_access_token:
         raise Exception("ACCESS_TOKEN do Mercado Pago não encontrado.")
-    sdk = mercadopago.SDK(access_token)
+    sdk = mercadopago.SDK(mercadopago_access_token)
 
     items = []
     for item in order.items.all():
@@ -192,11 +192,21 @@ class PaymentWebhookView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         # --- LÓGICA DE RECEBIMENTO DE WEBHOOK DO MERCADO PAGO ---
+        x_signature = request.META.get('HTTP_X_SIGNATURE')
+        x_request_id = request.META.get('HTTP_X_REQUEST_ID')
 
+        if not self.verify_webhook_signature(x_signature, x_request_id, request.body):
+            log_security_event(
+                'WEBHOOK_INVALID_SIGNATURE',
+                request,
+                details='Tentativa de webhook com assinatura inválida'
+            )
+            return Response({"error": "Invalid signature"}, status=403)
+        
         data = request.data
         if "id" in data and "type" in data and data["type"] == "payment":
             payment_id = data["id"]
-            sdk = mercadopago.SDK(os.getenv("ACCESS_TOKEN"))
+            sdk = mercadopago.SDK(os.getenv("MERCADOPAGO_ACCESS_TOKEN"))
             payment_info = sdk.payment().get(payment_id)
 
             status_payment = payment_info["response"]["status"]
@@ -206,4 +216,6 @@ class PaymentWebhookView(generics.GenericAPIView):
 
             return Response({"message": "ok"}, status=200)
         return Response({"message": "ignored"}, status=200)
+    
+    
 

@@ -6,7 +6,8 @@ from cart.serializers import CartSerializer, CartItemSerializer
 from cart.utils import calcular_frete_melhor_envio
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_cart
-
+import logging                          
+logger = logging.getLogger(__name__)
 
 @method_decorator(ratelimit_cart, name='dispatch')
 class CartItemCreateView(generics.CreateAPIView):
@@ -119,9 +120,9 @@ class CalculateShippingView(views.APIView):
                     'quantity': item.quantity
                 })
             except Exception as e:
+                logger.error(f"Erro ao processar produto {item.product.id}: {str(e)}")
                 return Response(
-                    {"error": f"Erro ao processar o produto ID {item.product.id}: {e}"
-                    },
+                    {"error": "Erro ao processar item. Tente novamente."},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             

@@ -273,7 +273,6 @@ class UserPasswordResetConfirmView(APIView):
         else:
             return Response({'error': 'Token inválido ou expirado.'}, status=status.HTTP_400_BAD_REQUEST)
         
-
 class UserDetailView(APIView):
     """
     View para retornar os dados do usuário autenticado.
