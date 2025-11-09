@@ -20,6 +20,7 @@ from apis.utils.security_logger import log_security_event
 
 
 
+
 #APIS Views de clientes e usuários
 
 @method_decorator(ratelimit_register, name='dispatch')

@@ -11,6 +11,7 @@ from orders.serializers import OrderSerializer, OrderStatusSerializer, OrderSeri
 from cart.models import Cart, CartItem
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_create_order
+from apis.utils.security_logger import log_security_event
 
 
 @method_decorator(ratelimit_create_order, name='dispatch')
