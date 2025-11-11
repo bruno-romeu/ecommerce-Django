@@ -97,6 +97,15 @@ def create_mercadopago_preference(order, client):
             "currency_id": "BRL",
         })
 
+    if order.shipping_cost > 0:
+        items.append({
+            "title": "Frete",
+            "description": "Custo de envio",
+            "quantity": 1,
+            "unit_price": float(order.shipping_cost),
+            "currency_id": "BRL",
+        })
+
     payer = {
         "name": f"{client.first_name}",
         "surname": f"{client.last_name}",
@@ -107,11 +116,12 @@ def create_mercadopago_preference(order, client):
         "items": items,
         "payer": payer,
         "back_urls": {
-            "success": f"{os.getenv("FRONTEND_URL")}/pedido/sucesso",
-            "failure": f"{os.getenv("FRONTEND_URL")}/pedido/falha",
-            "pending": f"{os.getenv("FRONTEND_URL")}/pedido/pendente"
+            "success": f"{os.getenv("FRONTEND_URL")}/checkout/sucesso",
+            "failure": f"{os.getenv("FRONTEND_URL")}/checkout/falha",
+            "pending": f"{os.getenv("FRONTEND_URL")}/checkout/pendente"
         },
         "auto_return": "approved",
+        "external_reference": str(order.id), 
         "notification_url": "https://bruno-romeu.github.io/portfolio/index.html"
     }
 
@@ -142,7 +152,7 @@ class PaymentCreateView(generics.CreateAPIView):
         try:
             order = Order.objects.get(id=order_id, client=user)
         except Order.DoesNotExist:
-            # ← NOVO: Log de tentativa de acesso a pedido de outro usuário
+            # Log de tentativa de acesso a pedido de outro usuário
             log_security_event(
                 event_type='UNAUTHORIZED_ORDER_ACCESS',
                 request=request,
@@ -162,7 +172,6 @@ class PaymentCreateView(generics.CreateAPIView):
 
 
         try:
-            # Chama a nossa função de ajuda
             preference_dict = create_mercadopago_preference(order, user)
         except Exception as e:
             # Captura qualquer erro que a função de ajuda levantar
@@ -171,7 +180,7 @@ class PaymentCreateView(generics.CreateAPIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # Cria o nosso registo de Payment local
+        # Cria o registo de Payment local
         payment = Payment.objects.create(
             order=order,
             status='pending',
@@ -184,7 +193,8 @@ class PaymentCreateView(generics.CreateAPIView):
         return Response({
             'payment_id_local': payment.id,
             'payment_url': preference_dict["payment_url"],
-            'preference_id': preference_dict["preference_id"]
+            'preference_id': preference_dict["preference_id"],
+            'total_amount': float(order.total + order.shipping_cost)    
         }, status=status.HTTP_201_CREATED)
 
 class PaymentWebhookView(generics.GenericAPIView):

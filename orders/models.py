@@ -17,11 +17,15 @@ class Order(models.Model):
     address = models.ForeignKey(Address, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    shipping_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     def __str__(self):
         return f'Pedido #{self.id}'
     
+    def get_total_with_shipping(self):
+        return (self.total + self.shipping_cost)
+
     @property
     def payment_status(self):
         return self.payment.status if hasattr(self, 'payment') and self.payment else 'Sem pagamento'

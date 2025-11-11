@@ -2,6 +2,7 @@ from rest_framework import generics, status, request, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from cart.models import Cart, CartItem
+from orders.models import Order
 from cart.serializers import CartSerializer, CartItemSerializer
 from cart.utils import calcular_frete_melhor_envio
 from django.utils.decorators import method_decorator
@@ -149,7 +150,7 @@ class CalculateShippingView(views.APIView):
                     {"error": f"Erro ao calcular frete com a API: {e}"}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            
+        Order.shipping_cost = services_data['preco'] if services_data else 0.00
         return Response(services_data, status=status.HTTP_200_OK)
             
             

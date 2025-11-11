@@ -5,8 +5,10 @@ from rest_framework.response import Response
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
+from datetime import datetime, timedelta
 
 from orders.models import Order, OrderItem
+from checkout.models import Shipping
 from orders.serializers import OrderSerializer, OrderStatusSerializer, OrderSerializer
 from cart.models import Cart, CartItem
 from django.utils.decorators import method_decorator
@@ -32,11 +34,17 @@ class OrderCreateView(generics.CreateAPIView):
                 raise ValidationError({'detail': 'Seu carrinho está vazio.'})
         except Cart.DoesNotExist:
             raise ValidationError({'detail': 'Carrinho não encontrado.'})
+        
+        shipping_cost = serializer.validated_data.get('shipping_cost', 0)
+        shipping_service = serializer.validated_data.get('shipping_service', '')
+        shipping_carrier = serializer.validated_data.get('shipping_carrier', '')
+        estimated_delivery_days = serializer.validated_data.get('estimated_delivery_days', None)
+
 
         with transaction.atomic():
-            total = sum(item.product.price * item.quantity for item in cart_items)
+            products_total = sum(item.product.price * item.quantity for item in cart_items)
 
-            order = serializer.save(client=user, total=total)
+            order = serializer.save(client=user, total=products_total, shipping_cost=shipping_cost)
 
             for item in cart_items:
                 OrderItem.objects.create(
@@ -45,6 +53,18 @@ class OrderCreateView(generics.CreateAPIView):
                     quantity=item.quantity,
                     price=item.product.price
                 )
+
+            estimated_delivery_date = None
+            if estimated_delivery_days:
+                estimated_delivery_date = (datetime.now() + timedelta(days=estimated_delivery_days)).date()
+
+            Shipping.objects.create(
+                order=order,
+                cost=shipping_cost,
+                carrier=shipping_carrier or 'A definir',
+                estimated_delivery=estimated_delivery_date,
+                status='pending'
+            )
 
             cart_items.delete()
         

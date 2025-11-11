@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Order, OrderItem
 from products.serializers import ProductSerializer
 from accounts.models import Address
+from decimal import Decimal
 
 class OrderItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
@@ -19,6 +20,7 @@ class ShippingDetailSerializer(serializers.Serializer):
     carrier = serializers.CharField(required=False, allow_null=True)
     estimated_delivery = serializers.DateField(required=False, allow_null=True)
     status = serializers.CharField()
+    cost = serializers.DecimalField(max_digits=8, decimal_places=2)
 
 
 class PaymentDetailSerializer(serializers.Serializer):
@@ -33,16 +35,37 @@ class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     shipping = serializers.SerializerMethodField()
     payment = serializers.SerializerMethodField()
+    total_with_shipping = serializers.SerializerMethodField()
 
     address = serializers.PrimaryKeyRelatedField(
         queryset=Address.objects.all(),
         write_only=True  
     )
+
+    shipping_cost = serializers.DecimalField(
+        max_digits=8, 
+        decimal_places=2, 
+        required=False,
+        default=0.00
+    )
+
+    shipping_service = serializers.CharField(required=False, allow_blank=True)
+    shipping_carrier = serializers.CharField(required=False, allow_blank=True)
+    estimated_delivery_days = serializers.IntegerField(required=False, allow_null=True)
     
     class Meta:
         model = Order
-        fields = ['id', 'address', 'status', 'total', 'created_at', 'items', 'shipping', 'payment']
-        read_only_fields = ['id', 'total', 'created_at', 'items', 'shipping', 'payment']
+        fields = ['id', 'address', 'status', 'total', 'shipping_cost', 
+            'total_with_shipping', 'created_at', 'items', 'shipping', 
+            'payment', 'shipping_service', 'shipping_carrier', 
+            'estimated_delivery_days']
+        read_only_fields = ['id', 'total', 'created_at', 'items', 'shipping', 'payment', 'total_with_shipping']
+
+    def get_total_with_shipping(self, obj):
+        """Retorna total + frete"""
+        total = obj.total if obj.total else Decimal('0.00')
+        shipping = obj.shipping_cost if obj.shipping_cost else Decimal('0.00')
+        return float(total + shipping)
 
     def get_shipping(self, obj):
         """Retorna dados de envio se existirem"""
@@ -53,6 +76,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 'carrier': obj.shipping.carrier,
                 'estimated_delivery': obj.shipping.estimated_delivery,
                 'status': obj.shipping.status,
+                'cost': float(obj.shipping.cost),
             }
         return None
 

@@ -9,7 +9,7 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'client', 'status', 'total', 'created_at', 'payment_status', 'shipping_status')
+    list_display = ('id', 'client', 'status', 'get_items_total', 'shipping_cost', 'total', 'created_at', 'payment_status', 'shipping_status')
     list_filter = ('status', 'created_at')
     search_fields = ('id', 'client__user__username')
     inlines = [OrderItemInline] # Adiciona os itens do pedido na mesma página do admin
@@ -31,3 +31,8 @@ class OrderAdmin(admin.ModelAdmin):
     def mark_as_canceled(self, request, queryset):
         queryset.filter(status__in=['pending', 'paid']).update(status='canceled')
     mark_as_canceled.short_description = "Marcar pedidos selecionados como cancelados"
+
+    def get_items_total(self, obj):
+        """Total só dos produtos"""
+        return sum(item.price * item.quantity for item in obj.items.all())
+    get_items_total.short_description = 'Total Produtos'

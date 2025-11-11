@@ -30,7 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SETTINGS_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', default=False)
+DEBUG = os.getenv('DEBUG', default=True)
 
 ALLOWED_HOSTS = ['balm.onrender.com', 'localhost', '127.0.0.1']
 
@@ -189,7 +189,7 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000,https://frontend-balm.vercel.app,https://balm.onrender.com',
+    default='http://localhost:3000,https://frontend-balm.vercel.app,https://balm.onrender.com,http://localhost:8000',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
@@ -218,6 +218,7 @@ DJOSER = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -242,7 +243,7 @@ CORS_ALLOW_METHODS = [
 
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000, https://frontend-balm.vercel.app',
+    default=['http://localhost:3000', 'https://frontend-balm.vercel.app'],
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
