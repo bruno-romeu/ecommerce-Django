@@ -110,9 +110,9 @@ def gerar_etiqueta_melhor_envio(order):
             'own_hand': False,  # Mão própria
             'reverse': False,  # Envio reverso
             'non_commercial': True,  # Não comercial
-            'invoice': {
-                'key': f"ORDER-{order.id}",  # Chave da nota fiscal
-            },
+            #'invoice': {
+            #    'key': f"ORDER-{order.id}",  Chave da nota fiscal
+            # },
             'platform': 'Balm E-commerce',
         }
     }
