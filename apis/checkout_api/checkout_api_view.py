@@ -15,6 +15,7 @@ import os
 import hmac
 import hashlib
 import logging
+import json
 
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_payment, ratelimit_shipping
@@ -122,26 +123,29 @@ def create_mercadopago_preference(order, client):
         "items": items,
         "payer": payer,
         "back_urls": {
-            "success": f"{os.getenv("FRONTEND_URL")}/checkout/sucesso",
-            "failure": f"{os.getenv("FRONTEND_URL")}/checkout/falha",
-            "pending": f"{os.getenv("FRONTEND_URL")}/checkout/pendente"
+            "success": f"{os.getenv('FRONTEND_URL')}/checkout/sucesso",
+            "failure": f"{os.getenv('FRONTEND_URL')}/checkout/falha",
+            "pending": f"{os.getenv('FRONTEND_URL')}/checkout/pendente"
         },
         "auto_return": "approved",
         "external_reference": str(order.id), 
-        "notification_url": "https://bruno-romeu.github.io/portfolio/index.html"
+        "notification_url": "https://balm.onrender.com/api/checkout/payments/webhook/"
     }
 
     try:
         preference_response = sdk.preference().create(preference_data)
         preference = preference_response["response"]
+
     except Exception as e:
         print(f"ERRO DO SDK MERCADO PAGO: {e}")
-        raise # Levanta o erro para a view tratar
+        raise
 
     return {
-        "payment_url": preference["init_point"],
+        "payment_url": preference["sandbox_init_point"],
         "preference_id": preference["id"]
     }
+    
+
 
 
 
@@ -207,12 +211,23 @@ class PaymentWebhookView(generics.GenericAPIView):
     permission_classes = []
 
     def post(self, request, *args, **kwargs):
+
+
+        logger.info("="*50)
+        logger.info(f"[WEBHOOK] Requisição recebida!")
+        logger.info(f"[WEBHOOK] Headers: {request.META}")
+        logger.info(f"[WEBHOOK] Body: {request.data}")
+        logger.info(f"[WEBHOOK] Raw body: {request.body}")
+        logger.info("="*50)
+
+
+
         # --- LÓGICA DE RECEBIMENTO DE WEBHOOK DO MERCADO PAGO ---
         x_signature = request.META.get('HTTP_X_SIGNATURE')
         x_request_id = request.META.get('HTTP_X_REQUEST_ID')
         logger.info(f"[WEBHOOK] Recebido do Mercado Pago: {request.data}")
 
-        if not self.verify_webhook_signature(x_signature, x_request_id, request.body):
+        if not self._verify_webhook_signature(x_signature, x_request_id, request.body):
             log_security_event(
                 'WEBHOOK_INVALID_SIGNATURE',
                 request,
