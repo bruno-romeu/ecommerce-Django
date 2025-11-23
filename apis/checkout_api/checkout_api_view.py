@@ -215,7 +215,7 @@ class PaymentWebhookView(generics.GenericAPIView):
     permission_classes = []
 
     def post(self, request, *args, **kwargs):
-        try:
+        try:    
             logger.info("=" * 50)
             logger.info(f"[WEBHOOK] Requisição recebida!")
             logger.info(f"[WEBHOOK] Body: {request.data}")
@@ -300,12 +300,12 @@ class PaymentWebhookView(generics.GenericAPIView):
             logger.info("[WEBHOOK] 6️⃣ Atualizando payment...")
 
             payment = order.payment
-            old_status = payment.status
-            new_status = self._map_mp_status(status_payment)
+            old_payment_status = payment.status  # ← Renomeei para ficar mais claro
+            new_payment_status = self._map_mp_status(status_payment)
 
-            logger.info(f"[WEBHOOK] Status: {old_status} → {new_status}")
+            logger.info(f"[WEBHOOK] Payment: {old_payment_status} → {new_payment_status}")
 
-            payment.status = new_status
+            payment.status = new_payment_status
             payment.transaction_id = str(payment_id)
 
             if status_payment == 'approved' and not payment.paid_at:
@@ -314,19 +314,34 @@ class PaymentWebhookView(generics.GenericAPIView):
             payment.save()
             logger.info(f"[WEBHOOK] ✅ Payment salvo!")
 
-            if status_payment == 'approved' and old_status != 'approved':
-                logger.info(f"[WEBHOOK] 🚀 DISPARANDO TASK para Order #{order.id}")
+            # ATUALIZAR ORDER SE APROVADO
+            if status_payment == 'approved':
+                logger.info("[WEBHOOK] 7️⃣ Atualizando status do Order...")
 
-                processar_envio_pedido.delay(order.id)
+                old_order_status = order.status
+                order.status = 'paid'
+                order.save()
 
-                log_security_event(
-                    'PAYMENT_APPROVED_SHIPPING_TRIGGERED',
-                    request,
-                    details=f'Task disparada para Order #{order.id}',
-                    level='info'
-                )
+                logger.info(f"[WEBHOOK] ✅ Order atualizado: {old_order_status} → {order.status}")
 
-            logger.info("[WEBHOOK] 7️⃣ Finalizando com sucesso")
+                # Só dispara task se o payment estava pending antes
+                if old_payment_status != 'approved':
+                    logger.info(f"[WEBHOOK] 🚀 DISPARANDO TASK para Order #{order.id}")
+
+                    processar_envio_pedido.delay(order.id)
+
+                    log_security_event(
+                        'PAYMENT_APPROVED_SHIPPING_TRIGGERED',
+                        request,
+                        details=f'Task disparada para Order #{order.id}',
+                        level='info'
+                    )
+                else:
+                    logger.info(f"[WEBHOOK] ℹ️ Pagamento já estava aprovado, não dispara task novamente")
+            else:
+                logger.info(f"[WEBHOOK] ℹ️ Status '{status_payment}' não é 'approved', não atualiza Order")
+
+            logger.info("[WEBHOOK] 8️⃣ Finalizando com sucesso")
             return Response({"message": "webhook processed successfully"}, status=200)
 
         except Order.DoesNotExist:
