@@ -140,7 +140,8 @@ class Payment(models.Model):
     order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='payment')
     method = models.CharField(max_length=50)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    preference_id = models.CharField(max_length=100, null=True, blank=True)
+    mp_payment_id = models.CharField(max_length=50, null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 
 

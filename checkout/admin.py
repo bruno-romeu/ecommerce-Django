@@ -21,7 +21,7 @@ class ShippingAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('order', 'get_amount', 'status', 'method')
+    list_display = ('id', 'order', 'get_amount', 'status', 'method')
     search_fields = ('order__id', 'method')
     list_filter = ('status',)
 

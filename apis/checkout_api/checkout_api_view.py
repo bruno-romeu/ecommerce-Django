@@ -195,7 +195,7 @@ class PaymentCreateView(generics.CreateAPIView):
             order=order,
             status='pending',
             # Guardamos o ID da preferência para referência futura
-            transaction_id=preference_dict["preference_id"], 
+            preference_id = preference_dict["preference_id"],
             method="MERCADOPAGO"
         )
 
@@ -306,7 +306,7 @@ class PaymentWebhookView(generics.GenericAPIView):
             logger.info(f"[WEBHOOK] Payment: {old_payment_status} → {new_payment_status}")
 
             payment.status = new_payment_status
-            payment.transaction_id = str(payment_id)
+            payment.mp_payment_id = payment_id
 
             if status_payment == 'approved' and not payment.paid_at:
                 payment.paid_at = timezone.now()
@@ -324,7 +324,7 @@ class PaymentWebhookView(generics.GenericAPIView):
 
                 logger.info(f"[WEBHOOK] ✅ Order atualizado: {old_order_status} → {order.status}")
 
-                # Só dispara task se o payment estava pending antes
+                # Só disp       ara task se o payment estava pending antes
                 if old_payment_status != 'approved':
                     logger.info(f"[WEBHOOK] 🚀 DISPARANDO TASK para Order #{order.id}")
 
