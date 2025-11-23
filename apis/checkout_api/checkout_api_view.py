@@ -207,25 +207,24 @@ class PaymentCreateView(generics.CreateAPIView):
             'total_amount': float(order.total + order.shipping_cost)    
         }, status=status.HTTP_201_CREATED)
 
+
 class PaymentWebhookView(generics.GenericAPIView):
+    '''
+    Webhook do Mercado Pago para receber notificações de pagamento.
+    '''
     permission_classes = []
 
     def post(self, request, *args, **kwargs):
-
-
-        logger.info("="*50)
+        logger.info("=" * 50)
         logger.info(f"[WEBHOOK] Requisição recebida!")
         logger.info(f"[WEBHOOK] Headers: {request.META}")
         logger.info(f"[WEBHOOK] Body: {request.data}")
         logger.info(f"[WEBHOOK] Raw body: {request.body}")
-        logger.info("="*50)
+        logger.info("=" * 50)
 
-
-
-        # --- LÓGICA DE RECEBIMENTO DE WEBHOOK DO MERCADO PAGO ---
+        # Validação de assinatura
         x_signature = request.META.get('HTTP_X_SIGNATURE')
         x_request_id = request.META.get('HTTP_X_REQUEST_ID')
-        logger.info(f"[WEBHOOK] Recebido do Mercado Pago: {request.data}")
 
         if not self._verify_webhook_signature(x_signature, x_request_id, request.body):
             log_security_event(
@@ -233,113 +232,116 @@ class PaymentWebhookView(generics.GenericAPIView):
                 request,
                 details='Tentativa de webhook com assinatura inválida'
             )
-            logger.warning("[WEBHOOK] Assinatura inválida")
+            logger.warning("[WEBHOOK] ⚠️ Assinatura inválida")
             return Response({"error": "Invalid signature"}, status=403)
-        
+
+        # Processar dados
         data = request.data
         notification_type = data.get('type')
+        action = data.get('action')
 
-        if notification_type == 'payment':
-            payment_id = data.get('data', {}).get('id')
-            
-            if not payment_id:
-                logger.warning("[WEBHOOK] ⚠️ ID de pagamento não encontrado")
-                return Response({"message": "payment_id not found"}, status=400)
-            
-            logger.info(f"[WEBHOOK] Processando pagamento ID: {payment_id}")
+        logger.info(f"[WEBHOOK] Tipo: {notification_type} | Ação: {action}")
 
-            try:
-                sdk = mercadopago.SDK(os.getenv("MERCADOPAGO_ACCESS_TOKEN"))
-                payment_info = sdk.payment().get(payment_id)
-                
-                if payment_info["status"] != 200:
-                    logger.error(f"[WEBHOOK] ❌ Erro ao buscar pagamento: {payment_info}")
-                    return Response({"error": "Failed to get payment info"}, status=500)
-                
-                payment_data = payment_info["response"]
+        # Só processar pagamentos
+        if notification_type != 'payment':
+            logger.info(f"[WEBHOOK] ℹ️ Tipo ignorado: {notification_type}")
+            return Response({"message": "notification type ignored"}, status=200)
 
-                status_payment = payment_data.get("status")
-                external_reference = payment_data.get("external_reference")  
-                transaction_amount = payment_data.get("transaction_amount")
-                
-                logger.info(f"[WEBHOOK] Status: {status_payment} | Order: {external_reference}")
+        # Extrair payment_id
+        payment_id = data.get('data', {}).get('id')
 
+        if not payment_id:
+            logger.warning("[WEBHOOK] ⚠️ ID de pagamento não encontrado")
+            return Response({"message": "payment_id not found"}, status=400)
 
-                try:
-                        payment = Payment.objects.get(transaction_id=external_reference)
-                        old_status = payment.status
-                        payment.status = self._map_mp_status(status_payment)
-                        
-                        if status_payment == 'approved' and not payment.paid_at:
-                            payment.paid_at = timezone.now()
-                        
-                        payment.save()
-                        
-                        logger.info(f"[WEBHOOK] ✅ Payment atualizado: {old_status} → {payment.status}")
-                        
-                        if status_payment == 'approved' and old_status != 'approved':
-                            order = payment.order
-                            
-                            logger.info(f"[WEBHOOK] 🚀 Disparando task de envio para Order #{order.id}")
-                            
-                            processar_envio_pedido.delay(order.id)
-                            
-                            log_security_event(
-                                'PAYMENT_APPROVED_SHIPPING_TRIGGERED',
-                                request,
-                                details=f'Pagamento aprovado. Task de envio disparada para Order #{order.id}',
-                                level='info'
-                            )
-                except Payment.DoesNotExist:
-                    logger.error(f"[WEBHOOK] ❌ Payment não encontrado: {external_reference}")
-                    return Response({"error": "Payment not found"}, status=404)
-                
-                return Response({"message": "webhook processed"}, status=200)
-            
-            except Exception as e:
-                logger.error(f"[WEBHOOK] ❌ Erro ao processar: {str(e)}")
-                return Response({"error": str(e)}, status=500)
-    
-        logger.info(f"[WEBHOOK] Tipo de notificação ignorado: {notification_type}")
-        return Response({"message": "ignored"}, status=200)
-    
+        logger.info(f"[WEBHOOK] Payment ID: {payment_id}")
+
+        # Ignorar criação, só processar atualização
+        if action == 'payment.created':
+            logger.info("[WEBHOOK] ℹ️ Pagamento criado, aguardando aprovação...")
+            return Response({"message": "payment created, waiting"}, status=200)
+
+        # Buscar detalhes na API do MP
+        try:
+            logger.info(f"[WEBHOOK] 🔍 Buscando dados do pagamento na API MP...")
+            sdk = mercadopago.SDK(os.getenv("MERCADOPAGO_ACCESS_TOKEN"))
+            payment_info = sdk.payment().get(payment_id)
+
+            if payment_info["status"] != 200:
+                logger.error(f"[WEBHOOK] ❌ API MP retornou erro: {payment_info}")
+                return Response({"error": "MP API error"}, status=500)
+
+            payment_data = payment_info["response"]
+            status_payment = payment_data.get("status")
+            external_reference = payment_data.get("external_reference")
+
+            logger.info(f"[WEBHOOK] Status MP: {status_payment} | Order ID: {external_reference}")
+
+            # Validar external_reference
+            if not external_reference:
+                logger.warning("[WEBHOOK] ⚠️ Sem external_reference")
+                return Response({"message": "no order reference"}, status=200)
+
+        except Exception as e:
+            logger.error(f"[WEBHOOK] ❌ Erro ao buscar MP API: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return Response({"error": f"MP API error: {str(e)}"}, status=500)
+
+        # Atualizar Payment no banco
+        try:
+            logger.info(f"[WEBHOOK] 🔍 Buscando Order #{external_reference}...")
+            order = Order.objects.get(id=external_reference)
+
+            if not hasattr(order, 'payment'):
+                logger.error(f"[WEBHOOK] ❌ Order #{order.id} sem Payment")
+                return Response({"error": "Order has no payment"}, status=404)
+
+            payment = order.payment
+            old_status = payment.status
+            new_status = self._map_mp_status(status_payment)
+
+            logger.info(f"[WEBHOOK] 📝 Atualizando Payment: {old_status} → {new_status}")
+
+            # Atualizar campos
+            payment.status = new_status
+            payment.transaction_id = str(payment_id)
+
+            if status_payment == 'approved' and not payment.paid_at:
+                payment.paid_at = timezone.now()
+
+            payment.save()
+            logger.info(f"[WEBHOOK] ✅ Payment salvo!")
+
+            # Disparar task se aprovado
+            if status_payment == 'approved' and old_status != 'approved':
+                logger.info(f"[WEBHOOK] 🚀 DISPARANDO TASK para Order #{order.id}")
+
+                processar_envio_pedido.delay(order.id)
+
+                log_security_event(
+                    'PAYMENT_APPROVED_SHIPPING_TRIGGERED',
+                    request,
+                    details=f'Task disparada para Order #{order.id}',
+                    level='info'
+                )
+
+            return Response({"message": "webhook processed successfully"}, status=200)
+
+        except Order.DoesNotExist:
+            logger.error(f"[WEBHOOK] ❌ Order #{external_reference} não existe")
+            return Response({"error": "Order not found"}, status=404)
+
+        except Exception as e:
+            logger.error(f"[WEBHOOK] ❌ Erro ao atualizar banco: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return Response({"error": f"Database error: {str(e)}"}, status=500)
 
     def _verify_webhook_signature(self, x_signature, x_request_id, body):
-        """
-        Valida a assinatura do webhook do Mercado Pago.
-        
-        Documentação: https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks
-        """
-        # TODO: Implementar validação de assinatura
-        # Por enquanto, retorna True (em produção, DEVE implementar)
-        
-        # Exemplo de implementação:
-        # secret = os.getenv("MERCADOPAGO_WEBHOOK_SECRET")
-        # if not secret:
-        #     return True  # Se não tiver secret configurado, aceita
-        # 
-        # expected_signature = hmac.new(
-        #     secret.encode(),
-        #     body,
-        #     hashlib.sha256
-        # ).hexdigest()
-        # 
-        # return hmac.compare_digest(expected_signature, x_signature)
-        
-        return True  # ⚠️ TEMPORÁRIO - Implementar validação em produção
-    
+        return True  # TEMPORÁRIO
+
     def _map_mp_status(self, mp_status):
-        """
-        Mapeia status do Mercado Pago para nosso modelo.
-        
-        Status do MP:
-        - approved: Pagamento aprovado
-        - pending: Aguardando pagamento
-        - in_process: Em processamento
-        - rejected: Rejeitado
-        - refunded: Reembolsado
-        - cancelled: Cancelado
-        """
         status_map = {
             'approved': 'approved',
             'pending': 'pending',
