@@ -221,17 +221,7 @@ class PaymentWebhookView(generics.GenericAPIView):
             logger.info(f"[WEBHOOK] Body: {request.data}")
             logger.info("=" * 50)
 
-            # Validação de assinatura
-            x_signature = request.META.get('HTTP_X_SIGNATURE')
-            x_request_id = request.META.get('HTTP_X_REQUEST_ID')
-
-            logger.info("[WEBHOOK] 1️⃣ Verificando assinatura...")
-
-            if not self._verify_webhook_signature(x_signature, x_request_id, request.body):
-                logger.warning("[WEBHOOK] ⚠️ Assinatura inválida")
-                return Response({"error": "Invalid signature"}, status=403)
-
-            logger.info("[WEBHOOK] 2️⃣ Processando dados...")
+            logger.info("[WEBHOOK] 1️⃣ Processando dados...")
 
             data = request.data
 
@@ -269,7 +259,7 @@ class PaymentWebhookView(generics.GenericAPIView):
                 logger.error("[WEBHOOK] ❌ Formato desconhecido")
                 return Response({"error": "Unknown format"}, status=400)
 
-            logger.info("[WEBHOOK] 3️⃣ Validando payment_id...")
+            logger.info("[WEBHOOK] 2️⃣ Validando payment_id...")
 
             if not payment_id:
                 logger.warning("[WEBHOOK] ⚠️ ID de pagamento não encontrado")
@@ -277,7 +267,7 @@ class PaymentWebhookView(generics.GenericAPIView):
 
             logger.info(f"[WEBHOOK] Payment ID: {payment_id}")
 
-            logger.info("[WEBHOOK] 4️⃣ Buscando na API do MP...")
+            logger.info("[WEBHOOK] 3️⃣ Buscando na API do MP...")
 
             sdk = mercadopago.SDK(os.getenv("MERCADOPAGO_ACCESS_TOKEN"))
             payment_info = sdk.payment().get(payment_id)
@@ -292,13 +282,13 @@ class PaymentWebhookView(generics.GenericAPIView):
             status_payment = payment_data.get("status")
             external_reference = payment_data.get("external_reference")
 
-            logger.info(f"[WEBHOOK] 5️⃣ Status: {status_payment} | Order: {external_reference}")
+            logger.info(f"[WEBHOOK] 4️⃣ Status: {status_payment} | Order: {external_reference}")
 
             if not external_reference:
                 logger.warning("[WEBHOOK] ⚠️ Sem external_reference")
                 return Response({"message": "no order reference"}, status=200)
 
-            logger.info(f"[WEBHOOK] 6️⃣ Buscando Order #{external_reference}...")
+            logger.info(f"[WEBHOOK] 5️⃣ Buscando Order #{external_reference}...")
 
             order = Order.objects.get(id=external_reference)
             logger.info(f"[WEBHOOK] Order encontrado: {order.id}")
@@ -307,7 +297,7 @@ class PaymentWebhookView(generics.GenericAPIView):
                 logger.error(f"[WEBHOOK] ❌ Order #{order.id} sem Payment")
                 return Response({"error": "Order has no payment"}, status=404)
 
-            logger.info("[WEBHOOK] 7️⃣ Atualizando payment...")
+            logger.info("[WEBHOOK] 6️⃣ Atualizando payment...")
 
             payment = order.payment
             old_status = payment.status
@@ -336,7 +326,7 @@ class PaymentWebhookView(generics.GenericAPIView):
                     level='info'
                 )
 
-            logger.info("[WEBHOOK] 8️⃣ Finalizando com sucesso")
+            logger.info("[WEBHOOK] 7️⃣ Finalizando com sucesso")
             return Response({"message": "webhook processed successfully"}, status=200)
 
         except Order.DoesNotExist:
@@ -348,13 +338,9 @@ class PaymentWebhookView(generics.GenericAPIView):
             logger.error(f"[WEBHOOK] ❌❌❌ ERRO FATAL: {str(e)}")
             logger.error(f"[WEBHOOK] Tipo do erro: {type(e).__name__}")
             import traceback
-            logger.error(f"[WEBHOOK] Traceback completo:")
             logger.error(traceback.format_exc())
             logger.error("=" * 50)
             return Response({"error": f"Internal error: {str(e)}"}, status=500)
-
-    def _verify_webhook_signature(self, x_signature, x_request_id, body):
-        return True
 
     def _map_mp_status(self, mp_status):
         status_map = {
