@@ -211,15 +211,14 @@ class PaymentCreateView(generics.CreateAPIView):
 class PaymentWebhookView(generics.GenericAPIView):
     '''
     Webhook do Mercado Pago para receber notificações de pagamento.
+    Suporta ambos os formatos: Feed v2.0 e WebHook v1.0
     '''
     permission_classes = []
 
     def post(self, request, *args, **kwargs):
         logger.info("=" * 50)
         logger.info(f"[WEBHOOK] Requisição recebida!")
-        logger.info(f"[WEBHOOK] Headers: {request.META}")
         logger.info(f"[WEBHOOK] Body: {request.data}")
-        logger.info(f"[WEBHOOK] Raw body: {request.body}")
         logger.info("=" * 50)
 
         # Validação de assinatura
@@ -227,68 +226,84 @@ class PaymentWebhookView(generics.GenericAPIView):
         x_request_id = request.META.get('HTTP_X_REQUEST_ID')
 
         if not self._verify_webhook_signature(x_signature, x_request_id, request.body):
-            log_security_event(
-                'WEBHOOK_INVALID_SIGNATURE',
-                request,
-                details='Tentativa de webhook com assinatura inválida'
-            )
             logger.warning("[WEBHOOK] ⚠️ Assinatura inválida")
             return Response({"error": "Invalid signature"}, status=403)
 
-        # Processar dados
         data = request.data
-        notification_type = data.get('type')
-        action = data.get('action')
 
-        logger.info(f"[WEBHOOK] Tipo: {notification_type} | Ação: {action}")
+        # ===== DETECTAR FORMATO DO WEBHOOK =====
+        # Formato 1: Feed v2.0 → {'resource': '...', 'topic': '...'}
+        # Formato 2: WebHook v1.0 → {'action': '...', 'data': {...}, 'type': '...'}
 
-        # Só processar pagamentos
-        if notification_type != 'payment':
-            logger.info(f"[WEBHOOK] ℹ️ Tipo ignorado: {notification_type}")
-            return Response({"message": "notification type ignored"}, status=200)
+        if 'topic' in data:
+            # FORMATO ANTIGO (Feed v2.0)
+            topic = data.get('topic')
+            payment_id = data.get('resource')
 
-        # Extrair payment_id
-        payment_id = data.get('data', {}).get('id')
+            logger.info(f"[WEBHOOK] Formato: Feed v2.0 | Topic: {topic}")
 
+            if topic != 'payment':
+                logger.info(f"[WEBHOOK] ℹ️ Topic ignorado: {topic}")
+                return Response({"message": "topic ignored"}, status=200)
+
+            # Não tem action no formato antigo, então buscar na API
+            action = None
+
+        elif 'type' in data:
+            # FORMATO NOVO (WebHook v1.0)
+            notification_type = data.get('type')
+            action = data.get('action')
+            payment_id = data.get('data', {}).get('id')
+
+            logger.info(f"[WEBHOOK] Formato: WebHook v1.0 | Type: {notification_type} | Action: {action}")
+
+            if notification_type != 'payment':
+                logger.info(f"[WEBHOOK] ℹ️ Tipo ignorado: {notification_type}")
+                return Response({"message": "type ignored"}, status=200)
+
+            # Ignorar criação
+            if action == 'payment.created':
+                logger.info("[WEBHOOK] ℹ️ Pagamento criado, aguardando aprovação...")
+                return Response({"message": "payment created, waiting"}, status=200)
+
+        else:
+            logger.error("[WEBHOOK] ❌ Formato desconhecido")
+            return Response({"error": "Unknown format"}, status=400)
+
+        # ===== VALIDAR PAYMENT_ID =====
         if not payment_id:
             logger.warning("[WEBHOOK] ⚠️ ID de pagamento não encontrado")
             return Response({"message": "payment_id not found"}, status=400)
 
         logger.info(f"[WEBHOOK] Payment ID: {payment_id}")
 
-        # Ignorar criação, só processar atualização
-        if action == 'payment.created':
-            logger.info("[WEBHOOK] ℹ️ Pagamento criado, aguardando aprovação...")
-            return Response({"message": "payment created, waiting"}, status=200)
-
-        # Buscar detalhes na API do MP
+        # ===== BUSCAR DETALHES NA API DO MP =====
         try:
-            logger.info(f"[WEBHOOK] 🔍 Buscando dados do pagamento na API MP...")
+            logger.info(f"[WEBHOOK] 🔍 Buscando dados na API MP...")
             sdk = mercadopago.SDK(os.getenv("MERCADOPAGO_ACCESS_TOKEN"))
             payment_info = sdk.payment().get(payment_id)
 
             if payment_info["status"] != 200:
-                logger.error(f"[WEBHOOK] ❌ API MP retornou erro: {payment_info}")
+                logger.error(f"[WEBHOOK] ❌ API MP erro: {payment_info}")
                 return Response({"error": "MP API error"}, status=500)
 
             payment_data = payment_info["response"]
             status_payment = payment_data.get("status")
             external_reference = payment_data.get("external_reference")
 
-            logger.info(f"[WEBHOOK] Status MP: {status_payment} | Order ID: {external_reference}")
+            logger.info(f"[WEBHOOK] Status: {status_payment} | Order: {external_reference}")
 
-            # Validar external_reference
             if not external_reference:
                 logger.warning("[WEBHOOK] ⚠️ Sem external_reference")
                 return Response({"message": "no order reference"}, status=200)
 
         except Exception as e:
-            logger.error(f"[WEBHOOK] ❌ Erro ao buscar MP API: {str(e)}")
+            logger.error(f"[WEBHOOK] ❌ Erro API MP: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return Response({"error": f"MP API error: {str(e)}"}, status=500)
 
-        # Atualizar Payment no banco
+        # ===== ATUALIZAR PAYMENT NO BANCO =====
         try:
             logger.info(f"[WEBHOOK] 🔍 Buscando Order #{external_reference}...")
             order = Order.objects.get(id=external_reference)
@@ -301,9 +316,8 @@ class PaymentWebhookView(generics.GenericAPIView):
             old_status = payment.status
             new_status = self._map_mp_status(status_payment)
 
-            logger.info(f"[WEBHOOK] 📝 Atualizando Payment: {old_status} → {new_status}")
+            logger.info(f"[WEBHOOK] 📝 Atualizando: {old_status} → {new_status}")
 
-            # Atualizar campos
             payment.status = new_status
             payment.transaction_id = str(payment_id)
 
@@ -313,7 +327,7 @@ class PaymentWebhookView(generics.GenericAPIView):
             payment.save()
             logger.info(f"[WEBHOOK] ✅ Payment salvo!")
 
-            # Disparar task se aprovado
+            # DISPARAR TASK SE APROVADO
             if status_payment == 'approved' and old_status != 'approved':
                 logger.info(f"[WEBHOOK] 🚀 DISPARANDO TASK para Order #{order.id}")
 
@@ -333,13 +347,13 @@ class PaymentWebhookView(generics.GenericAPIView):
             return Response({"error": "Order not found"}, status=404)
 
         except Exception as e:
-            logger.error(f"[WEBHOOK] ❌ Erro ao atualizar banco: {str(e)}")
+            logger.error(f"[WEBHOOK] ❌ Erro banco: {str(e)}")
             import traceback
             logger.error(traceback.format_exc())
             return Response({"error": f"Database error: {str(e)}"}, status=500)
 
     def _verify_webhook_signature(self, x_signature, x_request_id, body):
-        return True  # TEMPORÁRIO
+        return True  # ⚠️ TEMPORÁRIO
 
     def _map_mp_status(self, mp_status):
         status_map = {
