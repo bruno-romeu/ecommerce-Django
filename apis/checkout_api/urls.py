@@ -8,7 +8,5 @@ urlpatterns = [
 
     path('payments/webhook/', PaymentWebhookView.as_view(), name='payment-webhook'),
 
-    path('payments/webhook', PaymentWebhookView.as_view(), name='payment-webhook-no-slash'),
-
     path('coupons/validate/', ValidateCouponView.as_view(), name='validate-coupon'),
 ]
