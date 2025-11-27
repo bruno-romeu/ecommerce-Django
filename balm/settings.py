@@ -438,8 +438,8 @@ LOGGING = {
 
 
 # ==================== CELERY ====================
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://default:@maglev.proxy.rlwy.net:13410')
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://default:@maglev.proxy.rlwy.net:13410')
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis-19802.crce181.sa-east-1-2.ec2.cloud.redislabs.com:19802')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis-19802.crce181.sa-east-1-2.ec2.cloud.redislabs.com:19802')
 
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
