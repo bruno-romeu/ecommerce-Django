@@ -1,4 +1,3 @@
-# orders/api_views.py
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -61,7 +60,7 @@ class OrderCreateView(generics.CreateAPIView):
             Shipping.objects.create(
                 order=order,
                 cost=shipping_cost,
-                carrier=shipping_carrier or 'A definir',
+                carrier=shipping_carrier,
                 estimated_delivery=estimated_delivery_date,
                 status='pending'
             )
