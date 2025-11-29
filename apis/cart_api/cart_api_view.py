@@ -150,7 +150,6 @@ class CalculateShippingView(views.APIView):
                     {"error": f"Erro ao calcular frete com a API: {e}"}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-        Order.shipping_cost = services_data['preco'] if services_data else 0.00
         return Response(services_data, status=status.HTTP_200_OK)
             
             
