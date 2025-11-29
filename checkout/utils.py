@@ -1,5 +1,5 @@
 import requests
-import os
+from decouple import config
 from decimal import Decimal
 import logging
 
@@ -24,7 +24,7 @@ def gerar_etiqueta_melhor_envio(order):
         Exception: Se a API falhar ou retornar erro
     """
     
-    access_token = os.getenv("FRETE_API_KEY")
+    access_token = config("FRETE_API_KEY")
     base_url = "https://sandbox.melhorenvio.com.br/api/v2/me"
     
     headers = {
