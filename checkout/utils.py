@@ -1,9 +1,67 @@
+import os
 import requests
-from decouple import config
 from decimal import Decimal
+from datetime import datetime, timezone, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _refresh_melhor_envio_token(refresh_token):
+    """
+    Solicita um novo Access Token usando o Refresh Token.
+    """
+    token_url = "https://sandbox.melhorenvio.com.br/oauth/token"
+
+    client_id = os.getenv('ME_CLIENT_ID')
+    client_secret = os.getenv('ME_CLIENT_SECRET')
+    refresh_token = os.getenv('FRETE_REFRESH_TOKEN')
+
+    payload = {
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token,
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    logger.info("[TOKEN] Solicitando novo Access Token via Refresh Token.")
+
+    try:
+        response = requests.post(token_url, data=payload)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"[TOKEN] ❌ Erro ao renovar token. Verifique CLIENT_ID/SECRET ou Refresh Token: {e.response.text}")
+        raise Exception(f"Falha na renovação do token do Melhor Envio: {e.response.text}")
+
+    data = response.json()
+
+
+    new_access_token = data['access_token']
+    new_refresh_token = data.get('refresh_token', refresh_token)  # O Refresh Token pode ou não rotacionar
+
+    os.environ['FRETE_ACCESS_TOKEN'] = new_access_token
+    os.environ['FRETE_REFRESH_TOKEN'] = new_refresh_token
+
+    logger.info("[TOKEN] ✅ Access Token renovado e atualizado na memória da Task.")
+
+    return new_access_token
+
+
+def get_valid_melhor_envio_access_token():
+    """
+    Retorna o Access Token atual, renovando-o se necessário.
+    """
+
+    current_access_token = os.getenv("FRETE_ACCESS_TOKEN")
+
+    try:
+        current_refresh_token = os.getenv("FRETE_REFRESH_TOKEN")
+    except Exception:
+        logger.error("[TOKEN] ❌ FRETE_REFRESH_TOKEN não configurado no .env.")
+        raise Exception("Refresh Token não encontrado para renovação.")
+
+
+    return _refresh_melhor_envio_token(current_refresh_token)
 
 
 def gerar_etiqueta_melhor_envio(order):
@@ -24,7 +82,7 @@ def gerar_etiqueta_melhor_envio(order):
         Exception: Se a API falhar ou retornar erro
     """
 
-    access_token = config("FRETE_API_KEY")
+    access_token = os.getenv("FRETE_API_KEY")
     base_url = "https://sandbox.melhorenvio.com.br/api/v2/me"
 
     headers = {
