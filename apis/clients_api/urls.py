@@ -1,5 +1,5 @@
 from django.urls import path
-from apis.clients_api.clients_api_view import UserRegisterView, ClientProfileView, UserForgotPasswordView, UserLogoutView, UserPasswordResetConfirmView, AddressCreateView, StatesListView, AddressListView, AddressDetailView, CookieTokenObtainPairView
+from apis.clients_api.clients_api_view import UserRegisterView, ClientProfileView, UserForgotPasswordView, UserLogoutView, UserPasswordResetConfirmView, AddressCreateView, StatesListView, AddressListView, AddressDetailView, CookieTokenObtainPairView, VerifyEmailView, ResendVerificationEmailView
 
 urlpatterns = [
     path('register/', UserRegisterView.as_view(), name='user-register'),
@@ -12,6 +12,8 @@ urlpatterns = [
     path('forgot-password/', UserForgotPasswordView.as_view(), name='forgot-password'),
     path('reset-password/<str:uidb64>/<str:token>/', UserPasswordResetConfirmView.as_view(), name='reset-password-confirm'),
     path('auth/jwt/create/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+    path('resend-verification/', ResendVerificationEmailView.as_view(), name='resend-verification'),
 
 
 

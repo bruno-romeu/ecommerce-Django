@@ -14,6 +14,10 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=15, null=True, blank=True)
     birthday = models.DateField(null=True, blank=True)
 
+    email_verified = models.BooleanField(default=False)
+    email_verification_token = models.CharField(max_length=100, blank=True, null=True)
+    email_verification_sent_at = models.DateTimeField(blank=True, null=True)
+
     objects = CustomUserManager()
 
     def __str__(self):

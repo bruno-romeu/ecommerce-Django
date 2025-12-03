@@ -13,9 +13,10 @@ class ClientSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = (
             'id', 'email', 'first_name', 'last_name', 
-            'cpf', 'phone_number', 'birthday', 'addresses'
+            'cpf', 'phone_number', 'birthday', 'addresses', 
+            'email_verified'
             )
-
+        read_only_fields = ('email_verified')
 
 class UserClientRegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(style={'input_type': 'password'}, write_only=True)

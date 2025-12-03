@@ -14,6 +14,7 @@ from django.utils import timezone
 from datetime import timedelta
 from accounts.models import CustomUser, Address
 from accounts.serializers import AddressSerializer, ClientSerializer, UserClientRegisterSerializer
+from accounts.utils import send_verification_email, is_verification_token_valid
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_login, ratelimit_register, ratelimit_password_reset, ratelimit_profile_update, ratelimit_address
 from apis.utils.security_logger import log_security_event
@@ -28,10 +29,51 @@ class UserRegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserClientRegisterSerializer
 
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        
+        if response.status_code == 201:
+            user_email = request.data.get('email')
+            try:
+                user = CustomUser.objects.get(email=user_email)
+                send_verification_email(user)
+                
+                log_security_event(
+                    event_type='USER_REGISTERED',
+                    request=request,
+                    user=user,
+                    details=f'Novo usuário registrado: {user_email}. Email de verificação enviado.',
+                    level='info'
+                )
+            except CustomUser.DoesNotExist:
+                pass
+        
+        return response
+
 
 @method_decorator(ratelimit_login, name='dispatch')
 class CookieTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+
+        try:
+            user = CustomUser.objects.get(email=email)
+            if not user.email_verified:
+                log_security_event(
+                    event_type='LOGIN_BLOCKED_UNVERIFIED',
+                    request=request,
+                    user=user,
+                    details=f'Tentativa de login com email não verificado: {email}',
+                    level='warning'
+                )
+                return Response({
+                    'error': 'Email não verificado. Por favor, verifique seu email antes de fazer login.',
+                    'email_verified': False
+                }, status=status.HTTP_403_FORBIDDEN)
+        except CustomUser.DoesNotExist:
+            pass 
+
+
         try:
             response = super().post(request, *args, **kwargs)
             
@@ -299,3 +341,117 @@ class UserDetailView(APIView):
                 {'error': 'Erro ao obter dados do usuário.'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+
+#views de verificação de email ao registrar e logar
+class VerifyEmailView(APIView):
+    """
+    View para verificar o email do usuário através do token
+    """
+    permission_classes = [] 
+    
+    def post(self, request):
+        token = request.data.get('token')
+        
+        if not token:
+            return Response({
+                'error': 'Token de verificação é obrigatório.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = CustomUser.objects.get(email_verification_token=token)
+            
+            if not is_verification_token_valid(user):
+                log_security_event(
+                    event_type='EMAIL_VERIFICATION_EXPIRED',
+                    request=request,
+                    user=user,
+                    details='Token de verificação expirado',
+                    level='warning'
+                )
+                return Response({
+                    'error': 'Token de verificação expirado. Solicite um novo email de verificação.',
+                    'expired': True
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            user.email_verified = True
+            user.email_verification_token = None  # Limpa o token usado
+            user.save(update_fields=['email_verified', 'email_verification_token'])
+            
+            log_security_event(
+                event_type='EMAIL_VERIFIED',
+                request=request,
+                user=user,
+                details=f'Email verificado com sucesso: {user.email}',
+                level='info'
+            )
+            
+            return Response({
+                'message': 'Email verificado com sucesso! Você já pode fazer login.',
+                'email_verified': True
+            }, status=status.HTTP_200_OK)
+            
+        except CustomUser.DoesNotExist:
+            log_security_event(
+                event_type='EMAIL_VERIFICATION_INVALID_TOKEN',
+                request=request,
+                details='Token de verificação inválido',
+                level='warning'
+            )
+            return Response({
+                'error': 'Token de verificação inválido.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@method_decorator(ratelimit_register, name='dispatch')
+class ResendVerificationEmailView(APIView):
+    """
+    View para reenviar email de verificação
+    """
+    permission_classes = []  
+    
+    def post(self, request):
+        email = request.data.get('email')
+        
+        if not email:
+            return Response({
+                'error': 'Email é obrigatório.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user = CustomUser.objects.get(email=email)
+            
+            # Verifica se o email já está verificado
+            if user.email_verified:
+                return Response({
+                    'message': 'Este email já está verificado. Você pode fazer login.'
+                }, status=status.HTTP_200_OK)
+            
+            # Verifica se já enviou recentemente (evita spam)
+            if user.email_verification_sent_at:
+                time_since_last_email = timezone.now() - user.email_verification_sent_at
+                if time_since_last_email < timedelta(minutes=5):
+                    return Response({
+                        'error': 'Um email de verificação já foi enviado recentemente. Aguarde 5 minutos antes de solicitar novamente.'
+                    }, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            
+            if send_verification_email(user):
+                log_security_event(
+                    event_type='VERIFICATION_EMAIL_RESENT',
+                    request=request,
+                    user=user,
+                    details=f'Email de verificação reenviado para: {user.email}',
+                    level='info'
+                )
+                return Response({
+                    'message': 'Email de verificação enviado com sucesso. Verifique sua caixa de entrada.'
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Erro ao enviar email de verificação. Tente novamente mais tarde.'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except CustomUser.DoesNotExist:
+            return Response({
+                'message': 'Se este email estiver cadastrado, você receberá um email de verificação.'
+            }, status=status.HTTP_200_OK)
