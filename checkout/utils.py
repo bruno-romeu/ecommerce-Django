@@ -82,6 +82,12 @@ def gerar_etiqueta_melhor_envio(order):
         Exception: Se a API falhar ou retornar erro
     """
 
+    try:
+        access_token = get_valid_melhor_envio_access_token()
+    except Exception as e:
+        logger.error(f"[SERVICE] Falha crítica ao obter/renovar token: {str(e)}")
+        raise
+
     access_token = os.getenv("FRETE_API_KEY")
     base_url = "https://sandbox.melhorenvio.com.br/api/v2/me"
 
