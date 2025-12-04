@@ -131,6 +131,7 @@ def gerar_etiqueta_melhor_envio(order):
         'district': 'Bairro',
         'city': 'Sapiranga',
         'state_abbr': 'RS',
+        'country_id': 'BR',
     }
 
     cpf = None
