@@ -16,7 +16,7 @@ class ClientSerializer(serializers.ModelSerializer):
             'cpf', 'phone_number', 'birthday', 'addresses', 
             'email_verified'
             )
-        read_only_fields = ('email_verified')
+        read_only_fields = ('email_verified',)
 
 class UserClientRegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(style={'input_type': 'password'}, write_only=True)
