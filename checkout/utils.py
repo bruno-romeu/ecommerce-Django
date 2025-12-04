@@ -122,6 +122,8 @@ def gerar_etiqueta_melhor_envio(order):
         'phone': '51996065712',
         'email': 'bruno.rsilva2004@gmail.com',
         'document': '04677045038',
+        "company_document": "",
+        "state_register": "",
         'postal_code': '93800192',
         'address': 'Rua Exemplo',
         'number': '123',
@@ -143,13 +145,15 @@ def gerar_etiqueta_melhor_envio(order):
         'name': f"{order.client.first_name} {order.client.last_name}".strip(),
         'phone': order.client.phone_number or '11999999999',
         'email': order.client.email,
-        'document': cpf,  # ← USA CPF DO MERCADO PAGO
+        'document': cpf,
+        'company_document': '',
         'postal_code': address.zipcode.replace('-', ''),
         'address': address.street,
         'number': address.number,
         'complement': address.complement or '',
         'district': address.neighborhood,
         'city': address.city,
+        'country_id': 'BR',
         'state_abbr': address.state,
     }
 
