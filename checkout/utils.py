@@ -174,10 +174,8 @@ def gerar_etiqueta_melhor_envio(order):
     # 6. PAYLOAD COMPLETO
     payload = {
         'service': service_id,
-        'agency': None,
         'from': from_data,
         'to': to_data,
-        'package': package,
         'products': products,
         'volumes': [
             {
