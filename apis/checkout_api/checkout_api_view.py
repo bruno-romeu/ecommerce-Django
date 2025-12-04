@@ -282,6 +282,13 @@ class PaymentWebhookView(generics.GenericAPIView):
             status_payment = payment_data.get("status")
             external_reference = payment_data.get("external_reference")
 
+            payer_data = payment_data.get('payer', {})
+            identification = payer_data.get('identification', {})
+            cpf = identification.get('number')
+
+            Payment.payer_document = cpf
+            Payment.save()
+
             logger.info(f"[WEBHOOK] 4️⃣ Status: {status_payment} | Order: {external_reference}")
 
             if not external_reference:

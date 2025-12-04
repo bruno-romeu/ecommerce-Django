@@ -143,6 +143,7 @@ class Payment(models.Model):
     preference_id = models.CharField(max_length=100, null=True, blank=True)
     mp_payment_id = models.CharField(max_length=50, null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+    payer_document = models.CharField(max_length=14, null=True, blank=True)
 
 
     def __str__(self):
