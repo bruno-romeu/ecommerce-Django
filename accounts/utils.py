@@ -55,7 +55,8 @@ Equipe Velas Balm
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background-color: #f8f9fa; padding: 20px; text-align: center; }}
+        .header {{ background-color: #021f59; padding: 20px; text-align: center; }}
+        .title {{color: #fff}}
         .content {{ padding: 20px; }}
         .button {{ 
             display: inline-block; 
@@ -66,13 +67,14 @@ Equipe Velas Balm
             border-radius: 5px; 
             margin: 20px 0;
         }}
+        a {{color: #fff}}
         .footer {{ font-size: 12px; color: #666; margin-top: 30px; }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Velas Balm</h1>
+            <h1 class="title">Velas Balm</h1>
         </div>
         <div class="content">
             <h2>Olá {user.first_name},</h2>
