@@ -452,3 +452,14 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+
+# configuração para não dar erro de DNS no envio de emails
+import socket
+
+
+def getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+    return socket.getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+
+socket.getaddrinfo = getaddrinfo_ipv4_only
