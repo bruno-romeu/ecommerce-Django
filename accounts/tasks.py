@@ -3,12 +3,10 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth import get_user_model
 import logging
-import resend
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-resend.api_key = settings.RESEND_API_KEY
 
 @shared_task(bind=True, max_retries=3)
 def send_verification_email_task(self, user_id, token, frontend_url):
