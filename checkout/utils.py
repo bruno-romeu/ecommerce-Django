@@ -118,17 +118,14 @@ def gerar_etiqueta_melhor_envio(order):
 
     # 3. DADOS DO REMETENTE (FROM) - COMPLETOS
     from_data = {
-        'name': 'Balm',
+        'name': 'Manuela Braun Santos',
         'phone': '51996065712',
         'email': 'bruno.rsilva2004@gmail.com',
         'document': '04677045038',
-        "company_document": "",
-        "state_register": "",
         'postal_code': '93800192',
-        'address': 'Rua Exemplo',
+        'address': 'Rua Chui',
         'number': '123',
-        'complement': 'ap 301',
-        'district': 'Bairro',
+        'district': 'Centro',
         'city': 'Sapiranga',
         'state_abbr': 'RS',
         'country_id': 'BR',
@@ -147,7 +144,6 @@ def gerar_etiqueta_melhor_envio(order):
         'phone': order.client.phone_number or '11999999999',
         'email': order.client.email,
         'document': cpf,
-        'company_document': '',
         'postal_code': address.zipcode.replace('-', ''),
         'address': address.street,
         'number': address.number,
