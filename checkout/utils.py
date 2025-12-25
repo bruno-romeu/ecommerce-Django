@@ -1,30 +1,74 @@
+import os
 import requests
-from decouple import config
 from decimal import Decimal
+from datetime import datetime, timezone, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+def _refresh_melhor_envio_token(refresh_token):
+    """
+    Solicita um novo Access Token usando o Refresh Token.
+    """
+    token_url = "https://sandbox.melhorenvio.com.br/oauth/token"
+
+    client_id = os.getenv('ME_CLIENT_ID')
+    client_secret = os.getenv('ME_CLIENT_SECRET')
+    refresh_token = os.getenv('FRETE_REFRESH_TOKEN')
+
+    payload = {
+        'grant_type': 'refresh_token',
+        'refresh_token': refresh_token,
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    logger.info("[TOKEN] Solicitando novo Access Token via Refresh Token.")
+
+    try:
+        response = requests.post(token_url, data=payload)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"[TOKEN] ❌ Erro ao renovar token. Verifique CLIENT_ID/SECRET ou Refresh Token: {e.response.text}")
+        raise Exception(f"Falha na renovação do token do Melhor Envio: {e.response.text}")
+
+    data = response.json()
+
+
+    new_access_token = data['access_token']
+    new_refresh_token = data.get('refresh_token', refresh_token)  # O Refresh Token pode ou não rotacionar
+
+    os.environ['FRETE_ACCESS_TOKEN'] = new_access_token
+    os.environ['FRETE_REFRESH_TOKEN'] = new_refresh_token
+
+    logger.info("[TOKEN] ✅ Access Token renovado e atualizado na memória da Task.")
+
+    return new_access_token
+
+
+def get_valid_melhor_envio_access_token():
+    """
+    Retorna o Access Token atual, renovando-o se necessário.
+    """
+
+    current_access_token = os.getenv("FRETE_ACCESS_TOKEN")
+
+    try:
+        current_refresh_token = os.getenv("FRETE_REFRESH_TOKEN")
+    except Exception:
+        logger.error("[TOKEN] ❌ FRETE_REFRESH_TOKEN não configurado no .env.")
+        raise Exception("Refresh Token não encontrado para renovação.")
+
+
+    return _refresh_melhor_envio_token(current_refresh_token)
+
+
 def gerar_etiqueta_melhor_envio(order):
     """
     Integra com a API do Melhor Envio para gerar etiqueta de envio.
-
-    Args:
-        order: Instância do modelo Order
-
-    Returns:
-        dict: {
-            'tracking_code': str,
-            'label_url': str,
-            'melhor_envio_id': str
-        }
-
-    Raises:
-        Exception: Se a API falhar ou retornar erro
     """
-
-    access_token = config("FRETE_API_KEY")
+    access_token = os.getenv("FRETE_API_KEY")
     base_url = "https://sandbox.melhorenvio.com.br/api/v2/me"
 
     headers = {
@@ -36,12 +80,10 @@ def gerar_etiqueta_melhor_envio(order):
 
     logger.info(f"[SERVICE] Montando dados para pedido #{order.id}")
 
-    # 1. Preparar dados do pedido
-    # 1.1 Produtos
+    # 1. Preparar produtos
     products = []
     for item in order.items.all():
         product = item.product
-
         if not product.size:
             raise Exception(f"Produto '{product.name}' não tem tamanho configurado")
 
@@ -51,7 +93,7 @@ def gerar_etiqueta_melhor_envio(order):
             'unitary_value': float(item.price),
         })
 
-    # 2.2 Dimensões e peso do pacote
+    # 2. Dimensões e peso do pacote
     total_weight = 0
     max_height = 0
     max_width = 0
@@ -74,29 +116,50 @@ def gerar_etiqueta_melhor_envio(order):
 
     address = order.address
 
+    # 3. DADOS DO REMETENTE (FROM) - COMPLETOS
     from_data = {
+        'name': 'Manuela Braun Santos',
+        'phone': '51996065712',
+        'email': 'bruno.rsilva2004@gmail.com',
+        'document': '04677045038',
         'postal_code': '93800192',
+        'address': 'Rua Chui',
+        'number': '123',
+        'district': 'Centro',
+        'city': 'Sapiranga',
+        'state_abbr': 'RS',
+        'country_id': 'BR',
     }
 
+    cpf = None
+    if hasattr(order, 'payment') and order.payment.payer_document:
+        cpf = order.payment.payer_document
+    elif order.client.cpf:
+        cpf = order.client.cpf
+    else:
+        cpf = '00000000000'
+
     to_data = {
+        'name': f"{order.client.first_name} {order.client.last_name}".strip(),
+        'phone': order.client.phone_number or '11999999999',
+        'email': order.client.email,
+        'document': cpf,
         'postal_code': address.zipcode.replace('-', ''),
         'address': address.street,
         'number': address.number,
         'complement': address.complement or '',
-        'neighborhood': address.neighborhood,
+        'district': address.neighborhood,
         'city': address.city,
-        'state': address.state,
+        'country_id': 'BR',
+        'state_abbr': address.state,
     }
 
-    # 3. Payload para criar o pedido de envio
-    # Converter o carrier para ID do serviço
-    service_id = '1'  # PAC como padrão (ID 1)
+    # 5. Converter carrier para service ID
+    service_id = '1'  # PAC como padrão
     if order.shipping.carrier:
-        # Se carrier já for um número, usar diretamente
         try:
             service_id = str(int(order.shipping.carrier))
         except (ValueError, TypeError):
-            # Se for nome do serviço, mapear para ID
             service_map = {
                 'PAC': '1',
                 'SEDEX': '2',
@@ -109,12 +172,11 @@ def gerar_etiqueta_melhor_envio(order):
 
     logger.info(f"[SERVICE] Usando serviço ID: {service_id} (original: {order.shipping.carrier})")
 
+    # 6. PAYLOAD COMPLETO
     payload = {
         'service': service_id,
-        'agency': None,
         'from': from_data,
         'to': to_data,
-        'package': package,
         'products': products,
         'volumes': [
             {
@@ -137,6 +199,7 @@ def gerar_etiqueta_melhor_envio(order):
     logger.info(f"[SERVICE] Payload montado: {payload}")
 
     try:
+        # Criar pedido no carrinho
         logger.info(f"[SERVICE] Criando pedido de envio na API...")
         cart_url = f"{base_url}/cart"
         cart_response = requests.post(cart_url, json=payload, headers=headers)
@@ -149,11 +212,10 @@ def gerar_etiqueta_melhor_envio(order):
         melhor_envio_id = cart_data.get('id')
         logger.info(f"[SERVICE] Pedido criado: ID {melhor_envio_id}")
 
+        # Checkout
         logger.info(f"[SERVICE] Finalizando compra...")
         checkout_url = f"{base_url}/shipment/checkout"
-        checkout_payload = {
-            'orders': [melhor_envio_id]
-        }
+        checkout_payload = {'orders': [melhor_envio_id]}
         checkout_response = requests.post(checkout_url, json=checkout_payload, headers=headers)
 
         if checkout_response.status_code != 200:
@@ -161,28 +223,19 @@ def gerar_etiqueta_melhor_envio(order):
             raise Exception(
                 f"Erro na API Melhor Envio (checkout): {checkout_response.status_code} - {checkout_response.text}")
 
-        checkout_data = checkout_response.json()
-        logger.info(f"[SERVICE] Compra finalizada: {checkout_data}")
-
+        # Gerar etiqueta
         logger.info(f"[SERVICE] Gerando etiqueta...")
         label_url = f"{base_url}/shipment/generate"
-        label_payload = {
-            'orders': [melhor_envio_id]
-        }
+        label_payload = {'orders': [melhor_envio_id]}
         label_response = requests.post(label_url, json=label_payload, headers=headers)
 
         if label_response.status_code != 200:
             logger.error(f"[SERVICE] Erro ao gerar etiqueta: {label_response.text}")
             raise Exception(f"Erro na API Melhor Envio (label): {label_response.status_code} - {label_response.text}")
 
-        label_data = label_response.json()
-        logger.info(f"[SERVICE] Etiqueta gerada: {label_data}")
-
+        # Obter URL de impressão
         print_url = f"{base_url}/shipment/print"
-        print_payload = {
-            'mode': 'private',
-            'orders': [melhor_envio_id]
-        }
+        print_payload = {'mode': 'private', 'orders': [melhor_envio_id]}
         print_response = requests.post(print_url, json=print_payload, headers=headers)
 
         if print_response.status_code != 200:
@@ -191,7 +244,6 @@ def gerar_etiqueta_melhor_envio(order):
 
         print_data = print_response.json()
         label_url_pdf = print_data.get('url')
-
         tracking_code = cart_data.get('tracking') or f"ME{melhor_envio_id}"
 
         logger.info(f"[SERVICE] ✅ Etiqueta gerada com sucesso!")
@@ -207,7 +259,6 @@ def gerar_etiqueta_melhor_envio(order):
     except requests.exceptions.RequestException as e:
         logger.error(f"[SERVICE] ❌ Erro de conexão com API: {str(e)}")
         raise Exception(f"Erro de conexão com Melhor Envio: {str(e)}")
-
     except Exception as e:
         logger.error(f"[SERVICE] ❌ Erro inesperado: {str(e)}")
         raise

@@ -278,11 +278,16 @@ class PaymentWebhookView(generics.GenericAPIView):
                 logger.error(f"[WEBHOOK] ❌ API MP erro: {payment_info}")
                 return Response({"error": "MP API error"}, status=500)
 
+
             payment_data = payment_info["response"]
             status_payment = payment_data.get("status")
             external_reference = payment_data.get("external_reference")
 
-            logger.info(f"[WEBHOOK] 4️⃣ Status: {status_payment} | Order: {external_reference}")
+            payer_data = payment_data.get('payer', {})
+            identification = payer_data.get('identification', {})
+            cpf = identification.get('number')
+
+            logger.info(f"[WEBHOOK] 4️⃣ Status: {status_payment} | Order: {external_reference} | CPF: {cpf}")
 
             if not external_reference:
                 logger.warning("[WEBHOOK] ⚠️ Sem external_reference")
@@ -300,19 +305,20 @@ class PaymentWebhookView(generics.GenericAPIView):
             logger.info("[WEBHOOK] 6️⃣ Atualizando payment...")
 
             payment = order.payment
-            old_payment_status = payment.status  # ← Renomeei para ficar mais claro
+            old_payment_status = payment.status
             new_payment_status = self._map_mp_status(status_payment)
 
             logger.info(f"[WEBHOOK] Payment: {old_payment_status} → {new_payment_status}")
 
             payment.status = new_payment_status
             payment.mp_payment_id = payment_id
+            payment.payer_document = cpf
 
             if status_payment == 'approved' and not payment.paid_at:
                 payment.paid_at = timezone.now()
 
             payment.save()
-            logger.info(f"[WEBHOOK] ✅ Payment salvo!")
+            logger.info(f"[WEBHOOK] ✅ Payment salvo com CPF: {cpf}")
 
             # ATUALIZAR ORDER SE APROVADO
             if status_payment == 'approved':

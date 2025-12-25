@@ -57,36 +57,41 @@ class CookieTokenObtainPairView(TokenObtainPairView):
         email = request.data.get('email')
 
         try:
-            user = CustomUser.objects.get(email=email)
-            if not user.email_verified:
-                log_security_event(
-                    event_type='LOGIN_BLOCKED_UNVERIFIED',
-                    request=request,
-                    user=user,
-                    details=f'Tentativa de login com email não verificado: {email}',
-                    level='warning'
-                )
-                return Response({
-                    'error': 'Email não verificado. Por favor, verifique seu email antes de fazer login.',
-                    'email_verified': False
-                }, status=status.HTTP_403_FORBIDDEN)
-        except CustomUser.DoesNotExist:
-            pass 
-
-
-        try:
             response = super().post(request, *args, **kwargs)
-            
-            if response.status_code == 200:
-                email = request.data.get('email', 'Unknown')
+        except Exception as e:
+            log_security_event(
+                event_type='LOGIN_FAILED',
+                request=request,
+                details=f'Credenciais inválidas para email: {email}',
+                level='warning'
+            )
+            raise
+
+        if response.status_code == 200:
+            try:
+                user = CustomUser.objects.get(email=email)
+
+                if not user.email_verified:
+                    log_security_event(
+                        event_type='LOGIN_BLOCKED_UNVERIFIED',
+                        request=request,
+                        user=user,
+                        details=f'Tentativa de login com email não verificado: {email}',
+                        level='warning'
+                    )
+                    return Response({
+                        'error': 'Email não verificado. Por favor, verifique seu email antes de fazer login.',
+                        'email_verified': False
+                    }, status=status.HTTP_403_FORBIDDEN)
+
                 log_security_event(
                     event_type='LOGIN_SUCCESS',
                     request=request,
-                    user=request.user if hasattr(request, 'user') else None,
-                    details=f'Login realizado com sucesso {email}',
+                    user=user,
+                    details=f'Login realizado com sucesso para {email}',
                     level='info'
                 )
-            
+
                 data = response.data
                 access_token = data.get("access")
                 refresh_token = data.get("refresh")
@@ -98,37 +103,31 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                         key="access_token",
                         value=access_token,
                         httponly=True,
-                        secure=True,#mudar para true em prdoução
+                        secure=True,  # True em produção
                         samesite="None",
-                        max_age=int(timedelta(minutes=access_expires.total_seconds()/60).total_seconds())   ,
+                        max_age=int(access_expires.total_seconds()),
                         path="/",
                     )
                     del data["access"]
 
                 if refresh_token:
-                        response.set_cookie(
-                            key="refresh_token",
-                            value=refresh_token,
-                            httponly=True,
-                            secure=True, #mudar para true em prdoução
-                            samesite="None",
-                            max_age=int(timedelta(days=refresh_expires.total_seconds()/86400).total_seconds()),
-                            path="/",  
-                        )
-                        del data["refresh"]
-                    
+                    response.set_cookie(
+                        key="refresh_token",
+                        value=refresh_token,
+                        httponly=True,
+                        secure=True,  # True em produção
+                        samesite="None",
+                        max_age=int(refresh_expires.total_seconds()),
+                        path="/",
+                    )
+                    del data["refresh"]
+
                 response.data = data
-                
-            return response
-            
-        except Exception as e:
-            log_security_event(
-                event_type='LOGIN_FAILED',
-                request=request,
-                details=f'Credenciais inválidas',
-                level='warning'
-            )
-            raise
+
+            except CustomUser.DoesNotExist:
+                pass
+
+        return response
 
 
 @method_decorator(ratelimit_login, name='dispatch')
