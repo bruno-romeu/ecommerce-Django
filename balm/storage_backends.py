@@ -8,13 +8,15 @@ class SupabaseStorage(S3Boto3Storage):
     file_overwrite = False
 
     def __init__(self, **kwargs):
-        self.bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-        self.endpoint_url = settings.AWS_S3_ENDPOINT_URL
-        self.access_key = settings.AWS_ACCESS_KEY_ID
-        self.secret_key = settings.AWS_SECRET_ACCESS_KEY
-        self.region_name = settings.AWS_S3_REGION_NAME
-        self.custom_domain = settings.AWS_S3_CUSTOM_DOMAIN
 
-        self.addressing_style = "path"
-        self.signature_version = "s3v4"
+        kwargs['endpoint_url'] = settings.AWS_S3_ENDPOINT_URL
+        kwargs['region_name'] = settings.AWS_S3_REGION_NAME
+        kwargs['access_key'] = settings.AWS_ACCESS_KEY_ID
+        kwargs['secret_key'] = settings.AWS_SECRET_ACCESS_KEY
+        kwargs['bucket_name'] = settings.AWS_STORAGE_BUCKET_NAME
+        kwargs['custom_domain'] = settings.AWS_S3_CUSTOM_DOMAIN
+
+        kwargs['addressing_style'] = "path"
+        kwargs['signature_version'] = "s3v4"
+
         super().__init__(**kwargs)
