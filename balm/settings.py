@@ -470,7 +470,7 @@ if not DEBUG:
             "BACKEND": "balm.storage_backends.SupabaseStorage",
         },
         "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
 
