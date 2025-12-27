@@ -30,8 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SETTINGS_SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', default=True)
-
+DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = ['balm.onrender.com', 'localhost', '127.0.0.1']
 
 
@@ -54,6 +53,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     'djoser',
+    'storages',
 
     'accounts',
     'apis',
@@ -197,7 +197,7 @@ CSRF_TRUSTED_ORIGINS = config(
 )
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-MEDIA_URL = '/media/'
+
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 USE_X_FORWARDED_HOST = True
@@ -454,5 +454,39 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+
+# Supabase Storage
+AWS_ACCESS_KEY_ID = os.getenv('SUPABASE_ACCESS_KEY')
+AWS_SECRET_ACCESS_KEY = os.getenv('SUPABASE_SECRET_KEY')
+AWS_STORAGE_BUCKET_NAME = 'images'
+AWS_S3_REGION_NAME = 'sa-east-1'
+AWS_S3_ENDPOINT_URL = (f"https://{os.getenv('SUPABASE_PROJECT_ID')}.storage.supabase.co/storage/v1/s3")
+AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/object/public/{AWS_STORAGE_BUCKET_NAME}"
+
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "balm.storage_backends.SupabaseStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
+    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
