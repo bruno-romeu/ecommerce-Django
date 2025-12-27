@@ -417,7 +417,7 @@ LOGGING = {
         },
         
         'django.request': {
-            'handlers': ['file_errors', 'mail_admins'],
+            'handlers': ['console', 'file_errors', 'mail_admins'],
             'level': 'ERROR',
             'propagate': False,
         },
