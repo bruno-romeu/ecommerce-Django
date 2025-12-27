@@ -14,4 +14,7 @@ class SupabaseStorage(S3Boto3Storage):
         self.secret_key = settings.AWS_SECRET_ACCESS_KEY
         self.region_name = settings.AWS_S3_REGION_NAME
         self.custom_domain = settings.AWS_S3_CUSTOM_DOMAIN
+
+        self.addressing_style = "path"
+        self.signature_version = "s3v4"
         super().__init__(**kwargs)
