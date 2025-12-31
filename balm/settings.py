@@ -457,14 +457,9 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 
 # Supabase Storage
-AWS_ACCESS_KEY_ID = os.getenv('SUPABASE_ACCESS_KEY')
-AWS_SECRET_ACCESS_KEY = os.getenv('SUPABASE_SECRET_KEY')
-AWS_STORAGE_BUCKET_NAME = 'images'
-AWS_S3_REGION_NAME = 'sa-east-1'
-AWS_S3_ENDPOINT_URL = (f"https://{os.getenv('SUPABASE_PROJECT_ID')}.storage.supabase.co/storage/v1/s3")
-AWS_S3_CUSTOM_DOMAIN = f"{os.getenv('SUPABASE_PROJECT_ID')}.supabase.co/storage/v1/object/public/{AWS_STORAGE_BUCKET_NAME}"
-AWS_S3_ADDRESSING_STYLE = "path"
-AWS_S3_SIGNATURE_VERSION = "s3v4"
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
+SUPABASE_BUCKET_NAME = 'images'
 
 if not DEBUG:
     STORAGES = {
@@ -475,9 +470,6 @@ if not DEBUG:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
-
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
-
 else:
     STORAGES = {
         "default": {
@@ -487,8 +479,5 @@ else:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
-
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
