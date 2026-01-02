@@ -443,8 +443,8 @@ LOGGING = {
 
 
 # ==================== CELERY ====================
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://default:AjRrqcjOXT1Hl5oNaSSIkjsYgqEKeMRW@redis-19802.crce181.sa-east-1-2.ec2.cloud.redislabs.com:19802')
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://default:AjRrqcjOXT1Hl5oNaSSIkjsYgqEKeMRW@redis-19802.crce181.sa-east-1-2.ec2.cloud.redislabs.com:19802')
+CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://default:AS8TAAIncDI3Njk5NjRjZjVmNWI0YTM0OTZiNmE0NWU3MDEzMDJjZnAyMTIwNTE@evident-cougar-12051.upstash.io:6379')
+CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://default:AS8TAAIncDI3Njk5NjRjZjVmNWI0YTM0OTZiNmE0NWU3MDEzMDJjZnAyMTIwNTE@evident-cougar-12051.upstash.io:6379')
 
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
