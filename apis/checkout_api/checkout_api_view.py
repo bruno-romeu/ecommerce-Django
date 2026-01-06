@@ -6,16 +6,15 @@ from dotenv import load_dotenv
 
 from apis.utils.security_logger import log_security_event
 from checkout.models import Payment, Shipping, Coupon
-from checkout.tasks import processar_envio_pedido
 from checkout.serializer import PaymentSerializer, ShippingSerializer, CouponValidationSerializer
 from orders.models import Order
 
 import mercadopago
 import os
-import hmac
-import hashlib
 import logging
-import json
+import inngest
+from ecommerce_inngest import inngest_client
+from asgiref.sync import async_to_sync
 
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_payment, ratelimit_shipping
@@ -320,7 +319,6 @@ class PaymentWebhookView(generics.GenericAPIView):
             payment.save()
             logger.info(f"[WEBHOOK] ✅ Payment salvo com CPF: {cpf}")
 
-            # ATUALIZAR ORDER SE APROVADO
             if status_payment == 'approved':
                 logger.info("[WEBHOOK] 7️⃣ Atualizando status do Order...")
 
@@ -330,20 +328,34 @@ class PaymentWebhookView(generics.GenericAPIView):
 
                 logger.info(f"[WEBHOOK] ✅ Order atualizado: {old_order_status} → {order.status}")
 
-                # Só disp       ara task se o payment estava pending antes
                 if old_payment_status != 'approved':
-                    logger.info(f"[WEBHOOK] 🚀 DISPARANDO TASK para Order #{order.id}")
+                    logger.info(f"[WEBHOOK] 🚀 DISPARANDO EVENTO INNGEST para Order #{order.id}")
 
-                    processar_envio_pedido.delay(order.id)
+                    try:
+                        # Dispara evento Inngest ao invés da task Celery
+                        async_to_sync(inngest_client.send)(
+                            inngest.Event(
+                                name="payment/approved",
+                                data={
+                                    "order_id": order.id,
+                                    "payment_id": payment.id,
+                                    "mp_payment_id": payment_id,
+                                }
+                            )
+                        )
 
-                    log_security_event(
-                        'PAYMENT_APPROVED_SHIPPING_TRIGGERED',
-                        request,
-                        details=f'Task disparada para Order #{order.id}',
-                        level='info'
-                    )
+                        logger.info(f"[WEBHOOK] ✅ Evento Inngest disparado com sucesso")
+
+                        log_security_event(
+                            'PAYMENT_APPROVED_SHIPPING_TRIGGERED',
+                            request,
+                            details=f'Evento Inngest disparado para Order #{order.id}',
+                            level='info'
+                        )
+                    except Exception as e:
+                        logger.error(f"[WEBHOOK] ❌ Erro ao disparar evento Inngest: {str(e)}")
                 else:
-                    logger.info(f"[WEBHOOK] ℹ️ Pagamento já estava aprovado, não dispara task novamente")
+                    logger.info(f"[WEBHOOK] ℹ️ Pagamento já estava aprovado, não dispara evento novamente")
             else:
                 logger.info(f"[WEBHOOK] ℹ️ Status '{status_payment}' não é 'approved', não atualiza Order")
 

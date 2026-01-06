@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 import logging
 import inngest
-from ecommerce_inngest import inngest_client
+from inngest_functions.send_verification_email import inngest_client
 from asgiref.sync import async_to_sync
 
 logger = logging.getLogger(__name__)
