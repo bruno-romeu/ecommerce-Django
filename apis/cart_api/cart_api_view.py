@@ -7,8 +7,31 @@ from cart.serializers import CartSerializer, CartItemSerializer
 from cart.utils import calcular_frete_melhor_envio
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_cart
-import logging                          
+import logging                         
+import re 
 logger = logging.getLogger(__name__)
+
+
+def validar_cep(cep):
+    """
+    Valida formato de CEP brasileiro (XXXXX-XXX ou XXXXXXXX)
+    Retorna: (bool, str) - (é_válido, mensagem_erro)
+    """
+    if not cep:
+        return False, "CEP é obrigatório"
+    
+    cep_limpo = re.sub(r'[^0-9]', '', cep)
+    
+    if len(cep_limpo) != 8:
+        return False, "CEP deve conter exatamente 8 dígitos"
+    
+    if cep_limpo in ['00000000', '11111111', '22222222', '33333333', 
+                     '44444444', '55555555', '66666666', '77777777', 
+                     '88888888', '99999999']:
+        return False, "CEP inválido"
+    
+    return True, cep_limpo
+
 
 @method_decorator(ratelimit_cart, name='dispatch')
 class CartItemCreateView(generics.CreateAPIView):
@@ -81,7 +104,8 @@ class CartItemUpdateView(generics.UpdateAPIView):
 
 class CalculateShippingView(views.APIView):
     '''
-    View que retorna o valor da cotação do frete, com base nos fretes de origem e destino, e os produtos que estão no carrinho do cliente.
+    View que retorna o valor da cotação do frete, com base nos CEPs 
+    de origem e destino, e os produtos que estão no carrinho do cliente.
     '''
     permission_classes = [IsAuthenticated]
     
@@ -89,14 +113,21 @@ class CalculateShippingView(views.APIView):
         cep_origem = '93800192'
         cep_destino = request.data.get('cep', '').strip()
 
-        if not cep_destino:
+        cep_valido, resultado = validar_cep(cep_destino)
+        
+        if not cep_valido:
+            logger.warning(
+                f"[FRETE] CEP inválido fornecido por usuário {request.user.id}: '{cep_destino}'"
+            )
             return Response(
-                {"error": "O CEP destino é obrigatório."},
+                {
+                    "error": resultado,
+                    "field": "cep"
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        products_data = []
-        services_data = []
+        
+        cep_destino = resultado
 
         cart_items = CartItem.objects.filter(
             cart__user=request.user
@@ -107,9 +138,16 @@ class CalculateShippingView(views.APIView):
                 {"error": "Seu carrinho está vazio."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        products_data = []
         for item in cart_items:
             if not item.product or not item.product.size:
+                logger.error(
+                    f"[FRETE] Produto {item.product.id if item.product else 'N/A'} "
+                    f"sem tamanho configurado"
+                )
                 continue
+            
             product_size = item.product.size
 
             try:
@@ -121,36 +159,56 @@ class CalculateShippingView(views.APIView):
                     'quantity': item.quantity
                 })
             except Exception as e:
-                logger.error(f"Erro ao processar produto {item.product.id}: {str(e)}")
+                logger.error(f"[FRETE] Erro ao processar produto {item.product.id}: {str(e)}")
                 return Response(
                     {"error": "Erro ao processar item. Tente novamente."},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-            
-        if cep_origem and cep_destino and products_data:
         
-            try:
-                shipping_options = calcular_frete_melhor_envio(
-                    cep_origem=cep_origem, 
-                    cep_destino=cep_destino,
-                    product_list=products_data
+        if not products_data:
+            return Response(
+                {"error": "Nenhum produto válido encontrado no carrinho."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            shipping_options = calcular_frete_melhor_envio(
+                cep_origem=cep_origem, 
+                cep_destino=cep_destino,
+                product_list=products_data
+            )
+
+            services_data = []
+            for option in shipping_options:
+                if 'price' in option and 'delivery_time' in option:
+                    services_data.append({
+                        'servico': option['name'],
+                        'preco': option['price'],
+                        'prazo': option['delivery_time']
+                    })
+
+            if not services_data:
+                logger.warning(
+                    f"[FRETE] Nenhum serviço disponível para CEP {cep_destino}"
                 )
-
-                for option in shipping_options:
-                    if 'price' in option and 'delivery_time' in option:
-                        services_data.append({
-                            'servico':option['name'],
-                            'preco':option['price'],
-                            'prazo':option['delivery_time']
-                        })
-
-
-            except Exception as e:
                 return Response(
-                    {"error": f"Erro ao calcular frete com a API: {e}"}, 
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    {"error": "Nenhum serviço de frete disponível para este CEP."},
+                    status=status.HTTP_404_NOT_FOUND
                 )
-        return Response(services_data, status=status.HTTP_200_OK)
+
+            logger.info(
+                f"[FRETE] {len(services_data)} opções calculadas para "
+                f"usuário {request.user.id}, CEP {cep_destino}"
+            )
+
+            return Response(services_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"[FRETE] Erro ao calcular frete: {str(e)}")
+            return Response(
+                {"error": f"Erro ao calcular frete: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
             
             
 
