@@ -3,8 +3,52 @@ import requests
 from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+
+def validar_cpf(cpf):
+    """
+    Valida um CPF (apenas dígitos verificadores, não verifica na Receita).
+    Retorna True se válido, False caso contrário.
+    """
+    cpf = re.sub(r'\D',
+                 '',
+                 cpf)
+
+    if len(cpf) != 11:
+        return False
+
+    if cpf == cpf[0] * 11:
+        return False
+
+    soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
+    resto = soma % 11
+    digito1 = 0 if resto < 2 else 11 - resto
+
+    if int(cpf[9]) != digito1:
+        return False
+
+    soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
+    resto = soma % 11
+    digito2 = 0 if resto < 2 else 11 - resto
+
+    if int(cpf[10]) != digito2:
+        return False
+
+    return True
+
+
+def limpar_cpf(cpf):
+    """
+    Remove caracteres não numéricos do CPF.
+    """
+    if not cpf:
+        return None
+    return re.sub(r'\D',
+                  '',
+                  str(cpf))
 
 
 def _refresh_melhor_envio_token(refresh_token):
@@ -27,22 +71,23 @@ def _refresh_melhor_envio_token(refresh_token):
     logger.info("[TOKEN] Solicitando novo Access Token via Refresh Token.")
 
     try:
-        response = requests.post(token_url, data=payload)
+        response = requests.post(token_url,
+                                 data=payload)
         response.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        logger.error(f"[TOKEN] ❌ Erro ao renovar token. Verifique CLIENT_ID/SECRET ou Refresh Token: {e.response.text}")
+        logger.error(f"[TOKEN]  Erro ao renovar token. Verifique CLIENT_ID/SECRET ou Refresh Token: {e.response.text}")
         raise Exception(f"Falha na renovação do token do Melhor Envio: {e.response.text}")
 
     data = response.json()
 
-
     new_access_token = data['access_token']
-    new_refresh_token = data.get('refresh_token', refresh_token)  # O Refresh Token pode ou não rotacionar
+    new_refresh_token = data.get('refresh_token',
+                                 refresh_token)
 
     os.environ['FRETE_ACCESS_TOKEN'] = new_access_token
     os.environ['FRETE_REFRESH_TOKEN'] = new_refresh_token
 
-    logger.info("[TOKEN] ✅ Access Token renovado e atualizado na memória da Task.")
+    logger.info("[TOKEN]  Access Token renovado e atualizado na memória da Task.")
 
     return new_access_token
 
@@ -51,17 +96,83 @@ def get_valid_melhor_envio_access_token():
     """
     Retorna o Access Token atual, renovando-o se necessário.
     """
-
     current_access_token = os.getenv("FRETE_ACCESS_TOKEN")
 
     try:
         current_refresh_token = os.getenv("FRETE_REFRESH_TOKEN")
     except Exception:
-        logger.error("[TOKEN] ❌ FRETE_REFRESH_TOKEN não configurado no .env.")
+        logger.error("[TOKEN]  FRETE_REFRESH_TOKEN não configurado no .env.")
         raise Exception("Refresh Token não encontrado para renovação.")
 
-
     return _refresh_melhor_envio_token(current_refresh_token)
+
+
+def obter_service_id_do_nome(service_name, from_postal_code, to_postal_code,
+                             package, insurance_value, access_token):
+    """
+    Consulta os serviços disponíveis e retorna o ID do serviço que corresponde ao nome escolhido pelo cliente.
+    Se não encontrar, retorna o serviço mais barato disponível.
+    """
+    base_url = "https://sandbox.melhorenvio.com.br/api/v2/me"
+
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'User-Agent': 'suporte.balm@gmail.com'
+    }
+
+    calc_url = f"{base_url}/shipment/calculate"
+
+    payload = {
+        "from": {"postal_code": from_postal_code},
+        "to": {"postal_code": to_postal_code},
+        "package": package,
+        "options": {
+            "insurance_value": insurance_value,
+            "receipt": False,
+            "own_hand": False
+        }
+    }
+
+    logger.info(f"[SERVICE] Buscando ID do serviço '{service_name}'")
+
+    try:
+        response = requests.post(calc_url,
+                                 json=payload,
+                                 headers=headers)
+
+        if response.status_code != 200:
+            logger.error(f"[SERVICE] Erro ao consultar serviços: {response.text}")
+            raise Exception(f"Erro ao consultar serviços disponíveis: {response.status_code} - {response.text}")
+
+        services = response.json()
+
+        available_services = [s for s in services if not s.get('error')]
+
+        if not available_services:
+            logger.error(f"[SERVICE]  Nenhum serviço disponível para esta rota")
+            logger.error(f"[SERVICE] Serviços retornados: {services}")
+            raise Exception("Nenhum serviço de entrega disponível para esta rota. Verifique CEPs e dimensões.")
+
+        service_name_lower = service_name.lower() if service_name else ''
+
+        for service in available_services:
+            if service_name_lower in service['name'].lower():
+                logger.info(f"[SERVICE] Serviço encontrado: {service['name']} (ID: {service['id']}) - R$ {service['price']}")
+                return str(service['id'])
+
+        logger.warning(f"[SERVICE] ️ Serviço '{service_name}' não encontrado. Usando o mais barato disponível.")
+        available_services.sort(key=lambda x: float(x.get('price',
+                                                          999999)))
+        selected = available_services[0]
+        logger.info(f"[SERVICE] Serviço selecionado (fallback): {selected['name']} (ID: {selected['id']}) - R$ {selected['price']}")
+
+        return str(selected['id'])
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[SERVICE]  Erro de conexão ao consultar serviços: {str(e)}")
+        raise Exception(f"Erro de conexão com Melhor Envio: {str(e)}")
 
 
 def gerar_etiqueta_melhor_envio(order):
@@ -80,7 +191,6 @@ def gerar_etiqueta_melhor_envio(order):
 
     logger.info(f"[SERVICE] Montando dados para pedido #{order.id}")
 
-    # 1. Preparar produtos
     products = []
     for item in order.items.all():
         product = item.product
@@ -93,7 +203,6 @@ def gerar_etiqueta_melhor_envio(order):
             'unitary_value': float(item.price),
         })
 
-    # 2. Dimensões e peso do pacote
     total_weight = 0
     max_height = 0
     max_width = 0
@@ -103,26 +212,33 @@ def gerar_etiqueta_melhor_envio(order):
         if item.product.size:
             size = item.product.size
             total_weight += (size.weight or 0.3) * item.quantity
-            max_height = max(max_height, size.height or 5)
-            max_width = max(max_width, size.width or 5)
-            max_length = max(max_length, size.length or 10)
+            max_height = max(max_height,
+                             size.height or 5)
+            max_width = max(max_width,
+                            size.width or 5)
+            max_length = max(max_length,
+                             size.length or 10)
 
     package = {
-        'weight': max(total_weight, 0.3),
-        'height': max(max_height, 2),
-        'width': max(max_width, 11),
-        'length': max(max_length, 16),
+        'weight': max(total_weight,
+                      0.3),
+        'height': max(max_height,
+                      2),
+        'width': max(max_width,
+                     11),
+        'length': max(max_length,
+                      16),
     }
 
     address = order.address
 
-    # 3. DADOS DO REMETENTE (FROM) - COMPLETOS
+    from_postal_code = '93800192'
     from_data = {
         'name': 'Manuela Braun Santos',
         'phone': '51996065712',
         'email': 'bruno.rsilva2004@gmail.com',
-        'document': '04677045038',
-        'postal_code': '93800192',
+        'document': '03932851030',
+        'postal_code': from_postal_code,
         'address': 'Rua Chui',
         'number': '123',
         'district': 'Centro',
@@ -131,20 +247,35 @@ def gerar_etiqueta_melhor_envio(order):
         'country_id': 'BR',
     }
 
-    cpf = None
-    if hasattr(order, 'payment') and order.payment.payer_document:
-        cpf = order.payment.payer_document
-    elif order.client.cpf:
-        cpf = order.client.cpf
-    else:
-        cpf = '00000000000'
+    cpf_raw = None
 
+    if order.client.cpf:
+        cpf_raw = order.client.cpf
+        logger.info(f"[SERVICE] CPF obtido do cliente: {cpf_raw}")
+    elif hasattr(order,
+                 'payment') and order.payment.payer_document:
+        cpf_raw = order.payment.payer_document
+        logger.info(f"[SERVICE] CPF obtido do pagamento: {cpf_raw}")
+
+    cpf = limpar_cpf(cpf_raw)
+
+    if not cpf or not validar_cpf(cpf):
+        logger.error(f"[SERVICE] CPF inválido para pedido #{order.id}: '{cpf_raw}' (limpo: '{cpf}')")
+        raise Exception(
+            f"CPF inválido ou não encontrado para o pedido #{order.id}. "
+            f"CPF fornecido: '{cpf_raw}'. Verifique o cadastro do cliente."
+        )
+
+    logger.info(f"[SERVICE] CPF validado: {cpf}")
+
+    to_postal_code = address.zipcode.replace('-',
+                                             '')
     to_data = {
         'name': f"{order.client.first_name} {order.client.last_name}".strip(),
         'phone': order.client.phone_number or '11999999999',
         'email': order.client.email,
         'document': cpf,
-        'postal_code': address.zipcode.replace('-', ''),
+        'postal_code': to_postal_code,
         'address': address.street,
         'number': address.number,
         'complement': address.complement or '',
@@ -154,25 +285,30 @@ def gerar_etiqueta_melhor_envio(order):
         'state_abbr': address.state,
     }
 
-    # 5. Converter carrier para service ID
-    service_id = '1'  # PAC como padrão
-    if order.shipping.carrier:
-        try:
-            service_id = str(int(order.shipping.carrier))
-        except (ValueError, TypeError):
-            service_map = {
-                'PAC': '1',
-                'SEDEX': '2',
-                'pac': '1',
-                'sedex': '2',
-                'Correios - PAC': '1',
-                'Correios - SEDEX': '2',
-            }
-            service_id = service_map.get(order.shipping.carrier, '1')
+    # 5. OBTER SERVICE_ID DO SERVIÇO ESCOLHIDO PELO CLIENTE
+    if not hasattr(order,
+                   'shipping') or not order.shipping:
+        raise Exception(f"Pedido #{order.id} não possui registro de Shipping associado")
 
-    logger.info(f"[SERVICE] Usando serviço ID: {service_id} (original: {order.shipping.carrier})")
+    service_name = order.shipping.carrier
+    logger.info(f"[SERVICE] Serviço escolhido pelo cliente: '{service_name}'")
 
-    # 6. PAYLOAD COMPLETO
+    try:
+        service_id = obter_service_id_do_nome(
+            service_name=service_name,
+            from_postal_code=from_postal_code,
+            to_postal_code=to_postal_code,
+            package=package,
+            insurance_value=float(order.total),
+            access_token=access_token
+        )
+    except Exception as e:
+        logger.error(f"[SERVICE]  Erro ao obter service_id: {str(e)}")
+        raise
+
+    logger.info(f"[SERVICE] Service ID a ser usado: {service_id}")
+
+
     payload = {
         'service': service_id,
         'from': from_data,
@@ -199,10 +335,12 @@ def gerar_etiqueta_melhor_envio(order):
     logger.info(f"[SERVICE] Payload montado: {payload}")
 
     try:
-        # Criar pedido no carrinho
+
         logger.info(f"[SERVICE] Criando pedido de envio na API...")
         cart_url = f"{base_url}/cart"
-        cart_response = requests.post(cart_url, json=payload, headers=headers)
+        cart_response = requests.post(cart_url,
+                                      json=payload,
+                                      headers=headers)
 
         if cart_response.status_code != 201:
             logger.error(f"[SERVICE] Erro ao criar pedido: {cart_response.text}")
@@ -216,7 +354,9 @@ def gerar_etiqueta_melhor_envio(order):
         logger.info(f"[SERVICE] Finalizando compra...")
         checkout_url = f"{base_url}/shipment/checkout"
         checkout_payload = {'orders': [melhor_envio_id]}
-        checkout_response = requests.post(checkout_url, json=checkout_payload, headers=headers)
+        checkout_response = requests.post(checkout_url,
+                                          json=checkout_payload,
+                                          headers=headers)
 
         if checkout_response.status_code != 200:
             logger.error(f"[SERVICE] Erro ao finalizar: {checkout_response.text}")
@@ -227,7 +367,9 @@ def gerar_etiqueta_melhor_envio(order):
         logger.info(f"[SERVICE] Gerando etiqueta...")
         label_url = f"{base_url}/shipment/generate"
         label_payload = {'orders': [melhor_envio_id]}
-        label_response = requests.post(label_url, json=label_payload, headers=headers)
+        label_response = requests.post(label_url,
+                                       json=label_payload,
+                                       headers=headers)
 
         if label_response.status_code != 200:
             logger.error(f"[SERVICE] Erro ao gerar etiqueta: {label_response.text}")
@@ -236,7 +378,9 @@ def gerar_etiqueta_melhor_envio(order):
         # Obter URL de impressão
         print_url = f"{base_url}/shipment/print"
         print_payload = {'mode': 'private', 'orders': [melhor_envio_id]}
-        print_response = requests.post(print_url, json=print_payload, headers=headers)
+        print_response = requests.post(print_url,
+                                       json=print_payload,
+                                       headers=headers)
 
         if print_response.status_code != 200:
             logger.error(f"[SERVICE] Erro ao buscar URL: {print_response.text}")
@@ -246,7 +390,7 @@ def gerar_etiqueta_melhor_envio(order):
         label_url_pdf = print_data.get('url')
         tracking_code = cart_data.get('tracking') or f"ME{melhor_envio_id}"
 
-        logger.info(f"[SERVICE] ✅ Etiqueta gerada com sucesso!")
+        logger.info(f"[SERVICE] Etiqueta gerada com sucesso!")
         logger.info(f"[SERVICE] Tracking: {tracking_code}")
         logger.info(f"[SERVICE] URL: {label_url_pdf}")
 
@@ -257,8 +401,8 @@ def gerar_etiqueta_melhor_envio(order):
         }
 
     except requests.exceptions.RequestException as e:
-        logger.error(f"[SERVICE] ❌ Erro de conexão com API: {str(e)}")
+        logger.error(f"[SERVICE]  Erro de conexão com API: {str(e)}")
         raise Exception(f"Erro de conexão com Melhor Envio: {str(e)}")
     except Exception as e:
-        logger.error(f"[SERVICE] ❌ Erro inesperado: {str(e)}")
+        logger.error(f"[SERVICE] Erro inesperado: {str(e)}")
         raise
