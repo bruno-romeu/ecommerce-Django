@@ -194,7 +194,7 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000,https://frontend-balm.vercel.app,https://balm.onrender.com,http://localhost:8000',
+    default='http://localhost:3000,https://frontend-balm.vercel.app,https://balm.onrender.com,http://localhost:8000,https://api.inngest.com',
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 

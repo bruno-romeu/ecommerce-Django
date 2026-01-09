@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from inngest.django import serve
+from django.views.decorators.csrf import csrf_exempt
 from inngest_functions.send_verification_email import send_verification_email_fn
 from inngest_functions.process_shipping import process_shipping_fn
 from ecommerce_inngest import inngest_client
