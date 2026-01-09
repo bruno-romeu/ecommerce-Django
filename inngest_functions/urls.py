@@ -9,4 +9,4 @@ inngest.django.serve(
     [send_verification_email_fn, process_shipping_fn]
 )
 
-urlpatterns = inngest.django.urls 
+urlpatterns = inngest.django.urls()
