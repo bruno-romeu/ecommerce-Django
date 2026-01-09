@@ -16,45 +16,34 @@ def generate_verification_token():
     return secrets.token_urlsafe(32)
 
 
-def send_verification_email(user, frontend_url=None):
+def send_verification_email(user, token, frontend_url):
     """
-    Prepara o usuário e dispara o EVENTO do Inngest.
-    Retorna True se o evento foi disparado com sucesso.
+    Dispara evento Inngest para enviar email de verificação
     """
-    if not frontend_url:
-        frontend_url = os.getenv('FRONTEND_URL',
-                                 settings.FRONTEND_URL)
-
-    # Gera novo token
-    token = generate_verification_token()
-    user.email_verification_token = token
-    user.email_verification_sent_at = timezone.now()
-    user.save(update_fields=['email_verification_token',
-                             'email_verification_sent_at'])
-
-    logger.info(f"Token gerado para usuário {user.email}")
-
     try:
-        # Dispara o evento Inngest de forma síncrona
+        logger.info(f"Token gerado para usuário {user.email}")
+        
+        event_id = f"verify-email-{user.id}-{token}"
+        
         async_to_sync(inngest_client.send)(
             inngest.Event(
                 name="auth/send.verification.email",
                 data={
                     "user_id": user.id,
                     "token": token,
-                    "frontend_url": frontend_url
-                }
+                    "frontend_url": frontend_url,
+                },
+                id=event_id, 
             )
         )
-
-        logger.info(f"Evento Inngest disparado com sucesso para {user.email}")
+        
+        logger.info(f"✓ Evento Inngest disparado com sucesso para {user.email}")
         return True
-
+        
     except Exception as e:
-        logger.error(f"Erro ao disparar evento Inngest para {user.email}: {str(e)}")
-        logger.exception(e)
-        return False
-
+        logger.error(f"Erro ao disparar evento Inngest para {user.email}:")
+        logger.error("", exc_info=True)
+        raise
 
 def is_verification_token_valid(user):
     """
