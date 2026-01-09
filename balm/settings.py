@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'orders',
     'products',
     'site_config',
+    'inngest_functions',
 ]
 
 MIDDLEWARE = [

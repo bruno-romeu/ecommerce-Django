@@ -1,8 +1,7 @@
 import inngest
 
 inngest_client = inngest.Inngest(
-    app_id="ecommerce_app",
-    is_production=False,
+    app_id="inngest_balm",
 )
 
 __all__ = ['inngest_client']
