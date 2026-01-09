@@ -5,5 +5,5 @@ class EcommerceInngestConfig(AppConfig):
     name = "ecommerce_inngest"
 
     def ready(self):
-        import process_shipping
-        import send_verification_email
+        from inngest_functions import process_shipping
+        from inngest_functions import send_verification_email
