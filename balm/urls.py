@@ -11,19 +11,19 @@ from django.conf.urls.static import static
 
 @csrf_exempt
 def inngest_view(request):
-    """
-    View handler para o Inngest
-    """
     return serve(
-        request=request,
+        request,
         client=inngest_client,
-        functions=[send_verification_email_fn, process_shipping_fn],
+        functions=[
+            send_verification_email_fn,
+            process_shipping_fn,
+        ],
     )
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apis.urls')),
-    path("api/inngest", inngest_view, name="inngest"),
+    path("api/inngest/", inngest_view, name="inngest"),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
