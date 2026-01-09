@@ -4,4 +4,7 @@ from ecommerce_inngest import inngest_client
 
 @csrf_exempt
 def inngest_endpoint(request):
-    return serve(request, inngest_client)
+    """
+    Endpoint para o Inngest
+    """
+    return serve(inngest_client, request)
