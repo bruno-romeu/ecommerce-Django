@@ -6,7 +6,6 @@ from inngest_functions.process_shipping import process_shipping_fn
 from ecommerce_inngest import inngest_client
 from django.conf import settings
 from django.conf.urls.static import static
-from inngest_functions.views import inngest_endpoint
 
 
 urlpatterns = [
