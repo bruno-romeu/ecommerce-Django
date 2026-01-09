@@ -1,11 +1,8 @@
-"""
-Função Inngest para processar envio após pagamento aprovado
-"""
+from __future__ import annotations
 import traceback
 import logging
 from asgiref.sync import sync_to_async
 from inngest import Context, TriggerEvent
-from __future__ import annotations
 from typing import TYPE_CHECKING
 from ecommerce_inngest import inngest_client
 
