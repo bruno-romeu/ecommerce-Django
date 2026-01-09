@@ -5,9 +5,15 @@ import traceback
 import logging
 from asgiref.sync import sync_to_async
 from inngest import Context, TriggerEvent
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from ecommerce_inngest import inngest_client
 
+if TYPE_CHECKING:
+    from orders.models import Order
+
 logger = logging.getLogger(__name__)
+
 
 
 
