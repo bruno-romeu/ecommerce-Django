@@ -1,10 +1,10 @@
-"""
-Função Inngest para envio de email de verificação
-"""
 from inngest import Context, TriggerEvent
 import traceback
 from asgiref.sync import sync_to_async
 from ecommerce_inngest import inngest_client
+from accounts.models import CustomUser
+from django.core.mail import send_mail
+from django.conf import settings
 
 
 @inngest_client.create_function(
@@ -33,17 +33,7 @@ async def send_verification_email_fn(ctx: Context):
         print(f"[INNGEST EMAIL] Frontend URL: {frontend_url}")
 
         async def send_email_step():
-            import django
-            import os
-
-            if not django.apps.apps.ready:
-                os.environ.setdefault('DJANGO_SETTINGS_MODULE',
-                                      'balm.settings')
-                django.setup()
-
-            from accounts.models import CustomUser
-            from django.core.mail import send_mail
-            from django.conf import settings
+            
 
             print(f"[INNGEST EMAIL] Django configurado, buscando usuário...")
 
