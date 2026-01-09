@@ -12,7 +12,13 @@ from inngest_functions.views import inngest_endpoint
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apis.urls')),
-    path("api/inngest/", inngest_endpoint),
+    path(
+        "api/inngest/", 
+        serve(
+            inngest_client, 
+            [send_verification_email_fn, process_shipping_fn]
+        )
+    ),
 
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
