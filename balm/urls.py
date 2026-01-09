@@ -12,7 +12,7 @@ from inngest_functions.views import inngest_endpoint
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('apis.urls')),
-    path("api/inngest", inngest_endpoint),
+    path("api/inngest/", inngest_endpoint),
 
 ]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

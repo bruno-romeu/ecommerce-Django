@@ -1,9 +1,13 @@
 from django.apps import AppConfig
 
-class EcommerceInngestConfig(AppConfig):
+class InngestFunctionsConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "ecommerce_inngest"
+    name = "inngest_functions"
 
     def ready(self):
-        from inngest_functions import process_shipping
-        from inngest_functions import send_verification_email
+        try:
+            from . import process_shipping
+            from . import send_verification_email
+            print("[INNGEST] ✓ Funções registradas com sucesso")
+        except Exception as e:
+            print(f"[INNGEST] ✗ Erro ao registrar funções: {e}")
