@@ -13,8 +13,8 @@ from django.conf.urls.static import static
 def inngest_view(request):
     return serve(
         request,
-        client=inngest_client,
-        functions=[
+        inngest_client,
+        [
             send_verification_email_fn,
             process_shipping_fn,
         ],
