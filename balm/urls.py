@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from inngest.django import serve_handler
+from inngest.django import serve
 from inngest_functions.send_verification_email import send_verification_email_fn
 from inngest_functions.process_shipping import process_shipping_fn
 from ecommerce_inngest import inngest_client
@@ -14,7 +14,7 @@ def inngest_view(request):
     """
     View handler para o Inngest
     """
-    return serve_handler(
+    return serve(
         request=request,
         client=inngest_client,
         functions=[send_verification_email_fn, process_shipping_fn],
