@@ -9,16 +9,15 @@ from ecommerce_inngest import inngest_client
 from django.conf import settings
 from django.conf.urls.static import static
 
-@csrf_exempt
-def inngest_view(request):
-    return serve(
-        request,
+inngest_view = csrf_exempt(
+    serve(
         inngest_client,
         [
             send_verification_email_fn,
             process_shipping_fn,
         ],
     )
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
