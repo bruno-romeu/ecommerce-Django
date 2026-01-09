@@ -5,7 +5,6 @@ import traceback
 import logging
 from asgiref.sync import sync_to_async
 from inngest import Context, TriggerEvent
-from orders.models import Order
 from ecommerce_inngest import inngest_client
 
 logger = logging.getLogger(__name__)
@@ -13,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_order_with_items(order_id):
+    from orders.models import Order
     return (
         Order.objects
         .select_related('address', 'client', 'shipping', 'payment')
@@ -22,6 +22,7 @@ def get_order_with_items(order_id):
 
 
 def mark_shipping_processing(order_id):
+    from orders.models import Order
     order = Order.objects.select_related('shipping').get(id=order_id)
     shipping = order.shipping
 
@@ -33,6 +34,7 @@ def mark_shipping_processing(order_id):
 
 
 def save_shipping_success(order_id, resultado):
+    from orders.models import Order
     from django.utils import timezone
 
     order = Order.objects.select_related('shipping').get(id=order_id)
