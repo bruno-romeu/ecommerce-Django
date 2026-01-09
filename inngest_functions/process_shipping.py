@@ -5,9 +5,8 @@ import traceback
 import logging
 from asgiref.sync import sync_to_async
 from inngest import Context, TriggerEvent
-
-from ecommerce_inngest import inngest_client
 from orders.models import Order
+from ecommerce_inngest import inngest_client
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +56,7 @@ def save_shipping_success(order_id, resultado):
     retries=3,
 )
 async def process_shipping_fn(ctx: Context):
+    from orders.models import Order
 
     data = ctx.event.data
     order_id = data.get("order_id")
