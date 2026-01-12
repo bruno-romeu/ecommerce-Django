@@ -56,30 +56,51 @@ async def send_verification_email_fn(ctx: Context):
             {verification_url}
             ''',
             html_message=f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                    .button {{ 
-                        display: inline-block; padding: 12px 30px; 
-                        background-color: #007bff; color: white; 
-                        text-decoration: none; border-radius: 5px; 
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h2>Olá {user.first_name},</h2>
-                    <p>Obrigado por se cadastrar na Velas Balm!</p>
-                    <center>
-                        <a href="{verification_url}" class="button">Verificar Email</a>
-                    </center>
-                </div>
-            </body>
-            </html>
-            """,
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                            .header {{ background-color: #021f59; padding: 20px; text-align: center; }}
+                            .title {{color: #fff}}
+                            .content {{ padding: 20px; }}
+                            .button {{ 
+                                display: inline-block; 
+                                padding: 12px 30px; 
+                                background-color: #007bff; 
+                                color: white; 
+                                text-decoration: none; 
+                                border-radius: 5px; 
+                                margin: 20px 0;
+                            }}
+                            a {{color: #fff}}
+                            .footer {{ font-size: 12px; color: #666; margin-top: 30px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1 class="title">Velas Balm</h1>
+                            </div>
+                            <div class="content">
+                                <h2>Olá {user.first_name},</h2>
+                                <p>Obrigado por se cadastrar na Velas Balm!</p>
+                                <p>Para completar seu cadastro, por favor clique no botão abaixo para verificar seu email:</p>
+                                <center>
+                                    <a href="{verification_url}" class="button">Verificar Email</a>
+                                </center>
+                                <p>Ou copie e cole este link no seu navegador:</p>
+                                <p style="word-break: break-all; color: #007bff;">{verification_url}</p>
+                                <p class="footer">
+                                    Este link expira em 24 horas.<br>
+                                    Se você não criou esta conta, por favor ignore este email.
+                                </p>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                    """,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[user.email],
             fail_silently=False,
