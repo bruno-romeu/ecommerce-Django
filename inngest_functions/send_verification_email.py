@@ -6,160 +6,99 @@ from accounts.models import CustomUser
 from django.core.mail import send_mail
 from django.conf import settings
 
-
 @inngest_client.create_function(
     fn_id="send-verification-email",
     trigger=TriggerEvent(event="auth/send.verification.email"),
+    retries=3 
 )
 async def send_verification_email_fn(ctx: Context):
-    """
-    Função Inngest para enviar email de verificação
-    """
     print(f"\n{'=' * 60}")
     print(f"[INNGEST EMAIL] Função de email iniciada")
     print(f"[INNGEST EMAIL] Event data: {ctx.event.data}")
     print(f"{'=' * 60}\n")
 
-    try:
-        data = ctx.event.data
-        user_id = data.get("user_id")
-        token = data.get("token")
-        frontend_url = data.get("frontend_url")
+    
+    data = ctx.event.data
+    user_id = data.get("user_id")
+    token = data.get("token")
+    frontend_url = data.get("frontend_url")
 
-        if not all([user_id, token, frontend_url]):
-            raise ValueError("Dados incompletos no evento")
+    if not all([user_id, token, frontend_url]):
+        print("[INNGEST EMAIL] ERRO: Dados incompletos")
+        return {"status": "error", "message": "Dados incompletos"}
 
-        print(f"[INNGEST EMAIL] User ID: {user_id}")
-        print(f"[INNGEST EMAIL] Frontend URL: {frontend_url}")
+    print(f"[INNGEST EMAIL] User ID: {user_id}")
+    print(f"[INNGEST EMAIL] Frontend URL: {frontend_url}")
 
-        async def send_email_step():
+    async def send_email_step():
+        print(f"[INNGEST EMAIL] Django configurado, buscando usuário...")
+
+        try:
+            @sync_to_async
+            def get_user():
+                return CustomUser.objects.get(id=user_id)
+
+            user = await get_user()
+            print(f"[INNGEST EMAIL] Usuário encontrado: {user.email}")
+        except CustomUser.DoesNotExist:
+            return {"status": "error", "message": f"Usuário {user_id} não encontrado", "abort": True}
+
+        verification_url = f"{frontend_url}/verificar-email/{token}"
+
+        print(f"[INNGEST EMAIL] Preparando email para {user.email}...")
+
+        await sync_to_async(send_mail)(
+            subject='Verifique seu email - Balm',
+            message=f'''Olá {user.first_name},
             
+            Obrigado por se registrar na Balm!
+            Para completar seu cadastro, clique no link abaixo:
+            {verification_url}
+            ''',
+            html_message=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .button {{ 
+                        display: inline-block; padding: 12px 30px; 
+                        background-color: #007bff; color: white; 
+                        text-decoration: none; border-radius: 5px; 
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Olá {user.first_name},</h2>
+                    <p>Obrigado por se cadastrar na Velas Balm!</p>
+                    <center>
+                        <a href="{verification_url}" class="button">Verificar Email</a>
+                    </center>
+                </div>
+            </body>
+            </html>
+            """,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
 
-            print(f"[INNGEST EMAIL] Django configurado, buscando usuário...")
+        print(f"[INNGEST EMAIL] ✓ Email enviado com sucesso para {user.email}")
+        return {
+            "status": "success",
+            "email_sent": True,
+            "recipient": user.email
+        }
 
-            try:
-                @sync_to_async
-                def get_user():
-                    return CustomUser.objects.get(id=user_id)
+    result = await ctx.step.run("sending-django-email", send_email_step)
 
-                user = await get_user()
-                print(f"[INNGEST EMAIL] Usuário encontrado: {user.email}")
-            except CustomUser.DoesNotExist:
-                error_msg = f"Usuário com ID {user_id} não encontrado no banco"
-                print(f"[INNGEST EMAIL] ERRO: {error_msg}")
-                return {"status": "error", "message": error_msg}
-            except Exception as e:
-                error_msg = f"Erro ao buscar usuário: {str(e)}"
-                print(f"[INNGEST EMAIL] ERRO: {error_msg}")
-                return {"status": "error", "message": error_msg}
-
-            verification_url = f"{frontend_url}/verificar-email/{token}"
-
-            try:
-                print(f"[INNGEST EMAIL] Preparando email para {user.email}...")
-
-                send_mail(
-                    subject='Verifique seu email - Balm',
-                    message=f'''Olá {user.first_name},
-
-                    Obrigado por se registrar na Balm!
-
-                    Para completar seu cadastro, clique no link abaixo para verificar seu email:
-
-                    {verification_url}
-
-                    Este link expira em 24 horas.
-
-                    Se você não se cadastrou em nossa plataforma, ignore este email.
-
-                    Atenciosamente,
-                    Equipe Balm
-                    ''',
-                    html_message=f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <style>
-                            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                            .header {{ background-color: #021f59; padding: 20px; text-align: center; }}
-                            .title {{color: #fff}}
-                            .content {{ padding: 20px; }}
-                            .button {{ 
-                                display: inline-block; 
-                                padding: 12px 30px; 
-                                background-color: #007bff; 
-                                color: white; 
-                                text-decoration: none; 
-                                border-radius: 5px; 
-                                margin: 20px 0;
-                            }}
-                            a {{color: #fff}}
-                            .footer {{ font-size: 12px; color: #666; margin-top: 30px; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <div class="header">
-                                <h1 class="title">Velas Balm</h1>
-                            </div>
-                            <div class="content">
-                                <h2>Olá {user.first_name},</h2>
-                                <p>Obrigado por se cadastrar na Velas Balm!</p>
-                                <p>Para completar seu cadastro, por favor clique no botão abaixo para verificar seu email:</p>
-                                <center>
-                                    <a href="{verification_url}" class="button">Verificar Email</a>
-                                </center>
-                                <p>Ou copie e cole este link no seu navegador:</p>
-                                <p style="word-break: break-all; color: #007bff;">{verification_url}</p>
-                                <p class="footer">
-                                    Este link expira em 24 horas.<br>
-                                    Se você não criou esta conta, por favor ignore este email.
-                                </p>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                    """,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[user.email],
-                    fail_silently=False,
-                )
-
-                print(f"[INNGEST EMAIL] ✓ Email enviado com sucesso para {user.email}")
-                return {
-                    "status": "success",
-                    "email_sent": True,
-                    "recipient": user.email
-                }
-
-            except Exception as e:
-                error_msg = f"Erro ao enviar email: {str(e)}"
-                print(f"[INNGEST EMAIL] ERRO: {error_msg}")
-                traceback.print_exc()
-                return {"status": "error", "message": error_msg}
-
-        result = await ctx.step.run("sending-django-email",
-                                    send_email_step)
-
-        print(f"\n{'=' * 60}")
-        print(f"[INNGEST EMAIL] Job concluído")
-        print(f"[INNGEST EMAIL] Resultado: {result}")
-        print(f"{'=' * 60}\n")
-
+    if result.get("abort"):
         return result
 
-    except Exception as e:
-        print(f"\n{'!' * 60}")
-        print(f"[INNGEST EMAIL] ERRO FATAL NA FUNÇÃO")
-        print(f"[INNGEST EMAIL] Tipo: {type(e).__name__}")
-        print(f"[INNGEST EMAIL] Mensagem: {str(e)}")
-        print(f"{'!' * 60}")
-        traceback.print_exc()
-        print(f"{'!' * 60}\n")
+    print(f"\n{'=' * 60}")
+    print(f"[INNGEST EMAIL] Job concluído com sucesso")
+    print(f"{'=' * 60}\n")
 
-        return {
-            "status": "error",
-            "error_type": type(e).__name__,
-            "error_message": str(e)
-        }
+    return result
