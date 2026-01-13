@@ -182,9 +182,11 @@ class CalculateShippingView(views.APIView):
             for option in shipping_options:
                 if 'price' in option and 'delivery_time' in option:
                     services_data.append({
+                        'id':option['id'],
                         'servico': option['name'],
                         'preco': option['price'],
-                        'prazo': option['delivery_time']
+                        'prazo': option['delivery_time'],
+                        'transportadora': option.get('company', {}.get('name'))
                     })
 
             if not services_data:

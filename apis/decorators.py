@@ -15,9 +15,9 @@ def rate_limit_handler(request, exception):
 
 # -------- AUTENTICAÇÃO --------
 def ratelimit_login(func):
-    """Login: 5 tentativas / 15 minutos"""
+    """Login: 8 tentativas / 5 minutos"""
     @wraps(func)
-    @ratelimit(key='ip', rate='5/15m', method='POST', block=True)
+    @ratelimit(key='ip', rate='8/5m', method='POST', block=True)
     def wrapper(request, *args, **kwargs):
         try:
             return func(request, *args, **kwargs)
@@ -29,7 +29,7 @@ def ratelimit_login(func):
                 level='warning'
             )
             return JsonResponse({
-                'error': 'Muitas tentativas de login. Aguarde 15 minutos.'
+                'error': 'Muitas tentativas de login. Aguarde 5 minutos.'
             }, status=429)
     return wrapper
 

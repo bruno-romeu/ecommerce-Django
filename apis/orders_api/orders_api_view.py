@@ -108,6 +108,7 @@ class OrderCreateView(generics.CreateAPIView):
         shipping_cost = serializer.validated_data.get('shipping_cost', 0)
         shipping_service = serializer.validated_data.get('shipping_service', '')
         shipping_carrier = serializer.validated_data.get('shipping_carrier', '')
+        shipping_service_id = request.data.get('shipping_service_id')
         estimated_delivery_days = serializer.validated_data.get('estimated_delivery_days', None)
 
         if not shipping_cost or shipping_cost <= 0:
@@ -151,6 +152,7 @@ class OrderCreateView(generics.CreateAPIView):
                 cost=shipping_cost,
                 carrier=shipping_carrier,
                 estimated_delivery=estimated_delivery_date,
+                service_id=shipping_service_id,
                 status='pending'
             )
 

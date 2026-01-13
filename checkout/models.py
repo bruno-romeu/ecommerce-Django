@@ -80,6 +80,12 @@ class Shipping(models.Model):
     estimated_delivery = models.DateField(null=True, blank=True, verbose_name='Entrega Estimada')
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending', verbose_name='Status do Envio')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
+    service_id = models.IntegerField(
+        null=True, 
+        blank=True, 
+        verbose_name="ID do Serviço (Melhor Envio)",
+        help_text="ID numérico do serviço escolhido (ex: 1=PAC, 2=SEDEX)"
+    )
 
     melhor_envio_order_id = models.CharField(
         max_length=100, 
