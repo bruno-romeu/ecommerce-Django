@@ -6,11 +6,12 @@ class HeroSection(models.Model):
     button_text = models.CharField(max_length=50, verbose_name="Texto do Botão")
     button_link = models.CharField(max_length=255, verbose_name="Link do Botão (ex: /produtos)")
     background_image = models.ImageField(upload_to='hero/', verbose_name="Imagem de Fundo")
-    is_active = models.BooleanField(default=False, verbose_name="Está ativo?")
+    is_active = models.BooleanField(default=False, verbose_name="Ativo")
 
     class Meta:
-        verbose_name = "Hero Section"
-        verbose_name_plural = "Hero Sections"
+        verbose_name = "Banner inicial"
+        verbose_name_plural = "Banners iniciais"
+        ordering = ['-is_active']
 
     def __str__(self):
-        return self.title
+        return self.title   

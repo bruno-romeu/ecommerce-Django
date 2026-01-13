@@ -3,20 +3,20 @@ from .models import Category, Essence, Product, Size
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'slug',)
+    list_display = ('name', 'description', 'is_active',)
     search_fields = ('name', 'slug',)
     prepopulated_fields = {'slug': ('name',)}
 
 @admin.register(Essence)
 class EssenceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'is_active', 'order',)
+    list_display = ('name', 'description', 'order', 'is_active',)
     search_fields = ('name', 'slug',)
     prepopulated_fields = {'slug': ('name',)}
     list_filter = ('is_active',)
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'short_description' , 'price' , 'stock' , 'category' , 'essence' , 'size' , 'image' , 'is_active',)
+    list_display = ('name', 'short_description' , 'price' , 'stock_quantity' , 'category' , 'essence' , 'size' , 'is_bestseller' , 'is_active',)
     search_fields = ('name', 'slug', 'category', 'essence', 'size',)
     list_filter = ('category', 'essence', 'size', 'is_active',)
     prepopulated_fields = {'slug': ('name',)}
@@ -27,7 +27,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Size)
 class SizeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'weight', 'height', 'width', 'length', 'diameter', 'circumference',)
+    list_display = ('name', 'weight', 'height', 'width', 'length',)
     search_fields = ('name',)
 
 

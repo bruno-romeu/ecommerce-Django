@@ -4,7 +4,7 @@ from django.utils import timezone
 
 
 class Coupon(models.Model):
-    code = models.CharField(max_length=50, unique=True, verbose_name="Código do Cupom")
+    code = models.CharField(max_length=50, unique=True, verbose_name="Código")
     discount_percentage = models.DecimalField(
         max_digits=5, 
         decimal_places=2,
@@ -32,7 +32,7 @@ class Coupon(models.Model):
     class Meta:
         verbose_name = "Cupom de Desconto"
         verbose_name_plural = "Cupons de Desconto"
-        ordering = ['-created_at']
+        ordering = ['-created_at', 'discount_percentage']
     
     def __str__(self):
         return f"{self.code} - {self.discount_percentage}%"
@@ -73,13 +73,13 @@ class Shipping(models.Model):
         ('failed', 'Falhou'),
     ]
 
-    order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='shipping')
-    tracking_code = models.CharField(max_length=50, blank=True, null=True)
-    carrier = models.CharField(max_length=50, blank=True, null=True)
-    cost = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
-    estimated_delivery = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
-    updated_at = models.DateTimeField(auto_now=True)
+    order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='shipping', verbose_name='Pedido')
+    tracking_code = models.CharField(max_length=50, blank=True, null=True, verbose_name='Código de Rastreamento')
+    carrier = models.CharField(max_length=50, blank=True, null=True, verbose_name='Transportadora')
+    cost = models.DecimalField(max_digits=8, decimal_places=2, default=0.00, verbose_name='Custo de Envio')
+    estimated_delivery = models.DateField(null=True, blank=True, verbose_name='Entrega Estimada')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending', verbose_name='Status do Envio')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Atualizado em')
 
     melhor_envio_order_id = models.CharField(
         max_length=100, 
@@ -137,13 +137,13 @@ class Payment(models.Model):
     ]
 
 
-    order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='payment')
-    method = models.CharField(max_length=50)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    preference_id = models.CharField(max_length=100, null=True, blank=True)
-    mp_payment_id = models.CharField(max_length=50, null=True, blank=True)
-    paid_at = models.DateTimeField(null=True, blank=True)
-    payer_document = models.CharField(max_length=14, null=True, blank=True)
+    order = models.OneToOneField('orders.Order', on_delete=models.CASCADE, related_name='payment', verbose_name='Pedido')
+    method = models.CharField(max_length=50, verbose_name='Método de Pagamento')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Status do Pagamento')
+    preference_id = models.CharField(max_length=100, null=True, blank=True, verbose_name='ID da Preferência')
+    mp_payment_id = models.CharField(max_length=50, null=True, blank=True, verbose_name='ID do Pagamento (MP*)')
+    paid_at = models.DateTimeField(null=True, blank=True, verbose_name='Pago em')
+    payer_document = models.CharField(max_length=14, null=True, blank=True, verbose_name='Documento do Pagador')
 
 
     def __str__(self):

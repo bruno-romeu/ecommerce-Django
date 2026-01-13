@@ -14,9 +14,10 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=15, null=True, blank=True)
     birthday = models.DateField(null=True, blank=True)
 
-    email_verified = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=False, verbose_name='Conta Verificada')
     email_verification_token = models.CharField(max_length=100, blank=True, null=True)
     email_verification_sent_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Data de Registro', null=True)
 
     objects = CustomUserManager()
 
@@ -55,14 +56,19 @@ class Address(models.Model):
         ("TO", "Tocantins"),
     ]
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='addresses')
-    street = models.CharField(max_length=255)
-    number = models.CharField(max_length=10)
-    neighborhood = models.CharField(max_length=100, default="Centro")
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=2, choices=ESTADOS_BRASIL)
-    zipcode = models.CharField(max_length=10)
-    complement = models.CharField(max_length=100, blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='addresses', verbose_name='Usuário')
+    street = models.CharField(max_length=255, verbose_name='Rua')
+    number = models.CharField(max_length=10, verbose_name='Número')
+    neighborhood = models.CharField(max_length=100, verbose_name='Bairro')
+    city = models.CharField(max_length=100, verbose_name='Cidade')
+    state = models.CharField(max_length=2, choices=ESTADOS_BRASIL, verbose_name='Estado')
+    zipcode = models.CharField(max_length=10, verbose_name='CEP')
+    complement = models.CharField(max_length=100, blank=True, null=True, verbose_name='Complemento')
 
     def __str__(self):
         return f'{self.street}, {self.number} - {self.city}/{self.state} - CEP: {self.zipcode}'
+    
+    class Meta:
+        ordering = ['id', 'state', 'user']
+        verbose_name = 'Endereço'
+        verbose_name_plural = 'Endereços'

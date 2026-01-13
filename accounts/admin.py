@@ -7,7 +7,7 @@ class CustomUserAdmin(UserAdmin):
     Define a visualização de admin para o CustomUser.
     """
     model = CustomUser
-    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'is_active', 'email_verified', 'email_verification_sent_at')
+    list_display = ('email', 'first_name', 'last_name', 'birthday', 'created_at', 'is_active', 'email_verified',)
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'groups')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('email',)

@@ -314,10 +314,11 @@ JAZZMIN_SETTINGS = {
 
     "show_sidebar": True,
     "navigation_expanded": False,
-    "hide_apps": ['authtoken', 'auth', 'accounts'],
-    "order_with_respect_to": ['products', 'orders', 'site_config', 'checkout', 'cart'],
+    "hide_apps": ['authtoken', 'auth'],
+    "order_with_respect_to": ['accounts','products', 'orders', 'checkout', 'cart', 'site_config',],
     
     "icons": {
+        "accounts": "fa-solid fa-user",
         "products": "fa-solid fa-tags",
         "orders": "fa-solid fa-bag-shopping",
         "site_config": "fa-solid fa-desktop",
