@@ -46,6 +46,7 @@ class Essence(models.Model):
     
 class Size(models.Model):
     name = models.CharField(max_length=25, blank=True, null=True, verbose_name='Nome')
+    milliliters = models.FloatField(blank=True, null=True, verbose_name='Peso ml')
     weight = models.FloatField( blank=True, null=True, verbose_name='Peso kg')
     height = models.FloatField(default=5.0, verbose_name='Altura (cm)')
     width = models.FloatField(default=3.0, verbose_name='Largura (cm)')
@@ -68,7 +69,6 @@ class Product(models.Model):
     stock_quantity = models.PositiveIntegerField(default=0, verbose_name='Quantidade')
     stock = models.BooleanField(verbose_name='Em Estoque?', default=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products', verbose_name='Categoria')
-    essence = models.ForeignKey(Essence, on_delete=models.SET_NULL, null=True, blank=True, related_name='products', verbose_name='Essência')
     size = models.ForeignKey(Size, on_delete=models.SET_NULL, null=True, blank=True, related_name='products', verbose_name='Tamanho')
     is_bestseller = models.BooleanField(default=False, verbose_name="Best-seller")
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name='Imagem')
@@ -94,7 +94,7 @@ class Product(models.Model):
         return self.name
     
     class Meta:
-        ordering = ['name', 'price', 'stock_quantity', 'category', 'essence', 'size', 'is_bestseller', 'created_at']
+        ordering = ['name', 'price', 'stock_quantity', 'category', 'size', 'is_bestseller', 'created_at']
         verbose_name = "Produto"
         verbose_name_plural = "Produtos"
 

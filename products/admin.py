@@ -16,18 +16,19 @@ class EssenceAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'short_description' , 'price' , 'stock_quantity' , 'category' , 'essence' , 'size' , 'is_bestseller' , 'is_active',)
-    search_fields = ('name', 'slug', 'category', 'essence', 'size',)
-    list_filter = ('category', 'essence', 'size', 'is_active',)
+    list_display = ('name', 'short_description' , 'price' , 'stock_quantity' , 'category', 'size' , 'is_bestseller' , 'is_active',)
+    search_fields = ('name', 'slug', 'category', 'size',)
+    list_filter = ('category', 'size', 'is_active',)
     prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ('created_at',)
 
-    autocomplete_fields = ('category', 'essence', 'size',)
+    autocomplete_fields = ('category', 'size',)
 
 
 @admin.register(Size)
 class SizeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'weight', 'height', 'width', 'length',)
+    list_display = ('name', 'weight', 'milliliters', 'height', 'width',
+                    'length',)
     search_fields = ('name',)
 
 
