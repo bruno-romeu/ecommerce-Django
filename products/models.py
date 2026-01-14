@@ -62,7 +62,7 @@ class Size(models.Model):
     circumference = models.FloatField(blank=True, null=True, verbose_name='Circunferência (cm)')
 
     def __str__(self):
-        return f'{self.name} - {self.weight}kg'
+        return f'{self.name} - {self.weight} {self.unit}'
 
     class Meta:
         verbose_name = 'Tamanho'
