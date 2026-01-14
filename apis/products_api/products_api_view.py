@@ -7,57 +7,6 @@ from products.models import Product, Size, Essence, Category
 from products.serializers import CategorySerializer, EssenceSerializer, ProductSerializer, SizeSerializer
 from products.filters import ProductFilterSet
 
-class ProductListCreateView(generics.ListCreateAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-
-    def get_permissions(self):
-        if self.request.method == 'POST':
-            permission_classes = [IsAdminUser]
-        else:
-            permission_classes = [IsAuthenticatedOrReadOnly]
-        
-        return [permission() for permission in permission_classes]
-
-
-class ProductRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        all_sizes = Size.objects.all()
-        all_essences = Essence.objects.all()
-
-        product_data = self.get_serializer(instance).data
-        sizes_data = SizeSerializer(all_sizes, many=True).data
-        essences_data = EssenceSerializer(all_essences, many=True).data
-
-        response_data = {
-            "product": product_data,
-            "available_options": {
-                "sizes": sizes_data,
-                "essences": essences_data
-            }
-        }
-
-        return Response(response_data)
-
-    def get_permissions(self):
-
-        if self.request.method == 'GET':
-            permission_classes = [IsAuthenticatedOrReadOnly]
-
-        elif self.request.method == 'PUT':
-            permission_classes = [IsAdminUser]
-
-        elif self.request.method == 'DELETE':
-            permission_classes = [IsAdminUser]
-
-        else:
-            permission_classes = [IsAdminUser]
-
-        return [permission() for permission in permission_classes]
 
     
 class ProductViewSet(viewsets.ModelViewSet):
@@ -81,10 +30,10 @@ class ProductViewSet(viewsets.ModelViewSet):
 
         # Buscar TODOS os tamanhos e essências disponíveis, não apenas o do produto
         all_sizes = Size.objects.all()
-        all_essences = Essence.objects.all()
+        available_essences = instance.category.essences.filter(is_active=True)
 
         size_serializer = SizeSerializer(all_sizes, many=True)
-        essence_serializer = EssenceSerializer(all_essences, many=True)
+        essence_serializer = EssenceSerializer(available_essences, many=True, context={'request': request})
 
         response_data = {
             'product': product_data,

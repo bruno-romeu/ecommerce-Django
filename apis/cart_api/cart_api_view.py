@@ -51,9 +51,10 @@ class CartItemCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         
         product = serializer.validated_data.get('product')
+        essence = serializer.validated_data.get('essence')
         quantity = serializer.validated_data.get('quantity', 1)
 
-        existing_item = CartItem.objects.filter(cart=cart, product=product).first()
+        existing_item = CartItem.objects.filter(cart=cart, product=product, essence=essence).first()
 
         if existing_item:
             existing_item.quantity += quantity

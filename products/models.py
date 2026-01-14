@@ -27,6 +27,7 @@ class Category(models.Model):
 class Essence(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nome')
     description = models.TextField(blank=True, verbose_name='Descrição')
+    categorias = models.ManyToManyField(Category, related_name='essences', verbose_name='Categorias')
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     image = models.ImageField(upload_to="essences/", blank=True, null=True, verbose_name="Imagem da Essência")
     order = models.PositiveIntegerField(default=0, verbose_name="Ordem de Exibição")

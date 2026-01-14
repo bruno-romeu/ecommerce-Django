@@ -34,7 +34,6 @@ class ProductSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     category = serializers.StringRelatedField()
     size = SizeSerializer(read_only=True)
-    essence = EssenceSerializer(read_only=True)
 
     class Meta:
         model = Product
