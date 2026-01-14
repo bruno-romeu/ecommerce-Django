@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from cart.models import Cart, CartItem
 from orders.models import Order
 from cart.serializers import CartSerializer, CartItemSerializer
-from cart.utils import calcular_frete_melhor_envio
+from cart.utils import calcular_frete_melhor_envio, verificar_disponibilidade_retirada
 from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_cart
 import logging                         
@@ -180,39 +180,58 @@ class CalculateShippingView(views.APIView):
             )
 
             services_data = []
-            for option in shipping_options:
-                if 'price' in option and 'delivery_time' in option:
-                    services_data.append({
-                        'id':option['id'],
-                        'servico': option['name'],
-                        'preco': option['price'],
-                        'prazo': option['delivery_time'],
-                        'transportadora': option.get('company', {}.get('name'))
-                    })
+
+            if verificar_disponibilidade_retirada(cep_destino):
+                services_data.append({
+                    'id': -1,
+                    'servico': 'Retirada na Loja',
+                    'preco': 0.0,
+                    'prazo': 0,
+                    'transportadora': 'Loja Física',
+                    'tipo': 'retirada'
+                })
+
+            try:
+                if products_data:
+                    shipping_options = calcular_frete_melhor_envio(
+                        cep_origem=cep_origem, 
+                        cep_destino=cep_destino,
+                        product_list=products_data
+                    )
+
+                    for option in shipping_options:
+                        if 'price' in option and 'delivery_time' in option:
+                            services_data.append({
+                                'id': option['id'],
+                                'servico': option['name'],
+                                'preco': option['price'],
+                                'prazo': option['delivery_time'],
+                                'transportadora': option.get('company', {}.get('name'))
+                            })
+
+            except Exception as e:
+                logger.error(f"[FRETE] Erro na API externa: {str(e)}")
+                if not services_data: 
+                    return Response(
+                        {"error": "Erro ao calcular frete externo."}, 
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
 
             if not services_data:
-                logger.warning(
-                    f"[FRETE] Nenhum serviço disponível para CEP {cep_destino}"
-                )
                 return Response(
                     {"error": "Nenhum serviço de frete disponível para este CEP."},
                     status=status.HTTP_404_NOT_FOUND
                 )
 
-            logger.info(
-                f"[FRETE] {len(services_data)} opções calculadas para "
-                f"usuário {request.user.id}, CEP {cep_destino}"
-            )
-
             return Response(services_data, status=status.HTTP_200_OK)
-
+        
         except Exception as e:
             logger.error(f"[FRETE] Erro ao calcular frete: {str(e)}")
             return Response(
                 {"error": f"Erro ao calcular frete: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
+                
             
 
 

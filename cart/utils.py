@@ -28,3 +28,21 @@ def calcular_frete_melhor_envio(cep_origem, cep_destino, product_list):
                 return response.json()
             else:
                 raise Exception(f'Erro na API Melhor Envio: {response.status_code} {response.text}')
+            
+
+CEPS_DISPONIVEIS_RETIRADA = [
+       '93800',
+       '93700',
+
+]
+
+def verificar_disponibilidade_retirada(cep_destino):
+    """
+    Verifica se o CEP informado começa com algum dos prefixos permitidos para retirada.
+    """
+    cep_limpo = cep_destino.replace('-', '').strip()
+    
+    for prefixo in CEPS_DISPONIVEIS_RETIRADA:
+        if cep_limpo.startswith(prefixo):
+            return True
+    return False
