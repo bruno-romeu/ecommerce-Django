@@ -1,3 +1,5 @@
+from email.policy import default
+
 from django.db import models
 from django.utils.text import slugify
 
@@ -45,9 +47,14 @@ class Essence(models.Model):
         return self.name
     
 class Size(models.Model):
+    UNIDADES_DE_MEDIDA = [
+        ("g", "gramas"),
+        ("ml", "mililitros")
+    ]
     name = models.CharField(max_length=25, blank=True, null=True, verbose_name='Nome')
     weight = models.FloatField( blank=True, null=True, verbose_name='Peso')
-    unit = models.CharField(max_length=2, blank=True, null=True,
+    unit = models.CharField(max_length=2, choices=UNIDADES_DE_MEDIDA,
+                            default='g',
                             verbose_name='Unidade de Medida')
     height = models.FloatField(default=5.0, verbose_name='Altura (cm)')
     width = models.FloatField(default=3.0, verbose_name='Largura (cm)')
