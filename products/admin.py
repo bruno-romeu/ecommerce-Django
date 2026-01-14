@@ -27,7 +27,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Size)
 class SizeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'weight', 'milliliters', 'height', 'width',
+    list_display = ('name', 'weight', 'unit', 'height', 'width',
                     'length',)
     search_fields = ('name',)
 

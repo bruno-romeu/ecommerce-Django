@@ -46,8 +46,9 @@ class Essence(models.Model):
     
 class Size(models.Model):
     name = models.CharField(max_length=25, blank=True, null=True, verbose_name='Nome')
-    milliliters = models.FloatField(blank=True, null=True, verbose_name='Peso ml')
-    weight = models.FloatField( blank=True, null=True, verbose_name='Peso kg')
+    weight = models.FloatField( blank=True, null=True, verbose_name='Peso')
+    unit = models.CharField(max_length=2, blank=True, null=True,
+                            verbose_name='Unidade de Medida')
     height = models.FloatField(default=5.0, verbose_name='Altura (cm)')
     width = models.FloatField(default=3.0, verbose_name='Largura (cm)')
     length = models.FloatField(default=3.0, verbose_name='Comprimento (cm)')
