@@ -9,8 +9,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'quantity', 'price']
-        read_only_fields = ['id', 'product', 'price']
+        fields = ['id', 'product', 'quantity', 'price', 'customization_details']
+        read_only_fields = ['id', 'product', 'price', 'customization_details']
 
 
 class ShippingDetailSerializer(serializers.Serializer):

@@ -1,11 +1,13 @@
 from rest_framework import generics, status, request, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from cart.models import Cart, CartItem
+from cart.models import Cart, CartItem, CartItemCustomization
+from products.models import ProductCustomization
 from orders.models import Order
 from cart.serializers import CartSerializer, CartItemSerializer
 from cart.utils import calcular_frete_melhor_envio, verificar_disponibilidade_retirada
 from django.utils.decorators import method_decorator
+from django.db import transaction
 from apis.decorators import ratelimit_cart
 import logging                         
 import re 
@@ -53,20 +55,30 @@ class CartItemCreateView(generics.CreateAPIView):
         product = serializer.validated_data.get('product')
         essence = serializer.validated_data.get('essence')
         quantity = serializer.validated_data.get('quantity', 1)
+        customizations_data = request.data.get('customizations', [])
 
-        existing_item = CartItem.objects.filter(cart=cart, product=product, essence=essence).first()
+        with transaction.atomic():
+            cart_item = serializer.save(cart=cart)
 
-        if existing_item:
-            existing_item.quantity += quantity
-            existing_item.save()
-            
-            response_serializer = self.get_serializer(existing_item)
-            return Response(response_serializer.data, status=status.HTTP_200_OK)
-        else:
-            serializer.save(cart=cart)
+            if customizations_data:
+                for cust_data in customizations_data:
+                    option_id = cust_data.get('option_id')
+                    value = cust_data.get('value')
+
+                    try:
+                        option = ProductCustomization.objects.get(id=option_id,
+                                                                  product=product)
+                    except ProductCustomization.DoesNotExist:
+                        continue
+                    CartItemCustomization.objects.create(
+                        cart_item=cart_item,
+                        option=option,
+                        value=value
+                    )
             headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
+            return Response(serializer.data,
+                            status=status.HTTP_201_CREATED,
+                            headers=headers)
 
 
 class CartItemDestroyView(generics.DestroyAPIView):

@@ -116,3 +116,47 @@ class Product(models.Model):
         verbose_name = "Produto"
         verbose_name_plural = "Produtos"
 
+
+
+class ProductCustomization(models.Model):
+    """
+    Define as opções de personalização disponíveis para um produto.
+    Ex: 'Gravar Nome' (Texto)
+    """
+    TYPE_CHOICES = (
+        ('text', 'Texto Livre (Cliente digita)'),
+        ('select', 'Seleção (Cliente escolhe de uma lista)'),
+        ('boolean', 'Sim/Não'),
+    )
+
+    category = models.ForeignKey(Category,
+                                 related_name='customization_options',
+                          on_delete=models.CASCADE, verbose_name='Categoria',
+    default=5
+    )
+    name = models.CharField(max_length=100, verbose_name='Nome da Opção')
+    instruction = models.CharField(max_length=255, blank=True,
+                                   verbose_name='Instrução para o cliente')
+
+    input_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='text', verbose_name='Tipo de Entrada')
+
+    available_options = models.TextField(blank=True,
+                                         null=True,
+                                         verbose_name='Opções disponíveis (se houver)')
+
+    price_extra = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=0.00,
+        verbose_name='Custo Adicional (Unitário)'
+    )
+    free_above_quantity = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name='Grátis a partir de X unidades',
+        help_text='Se o cliente comprar acima dessa quantidade, essa personalização sai de graça.'
+    )
+
+    def __str__(self):
+        return f"{self.name} - {self.category.name}"
+

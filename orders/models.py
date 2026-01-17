@@ -45,6 +45,11 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name='Produto')
     quantity = models.PositiveIntegerField(verbose_name='Quantidade')
     price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Preço')
+    customization_details = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Detalhes da Personalização'
+    )
 
     def __str__(self):
         return f'{self.quantity} x {self.product.name}'

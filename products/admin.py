@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Essence, Product, Size
+from .models import Category, Essence, Product, Size, ProductCustomization
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -30,6 +30,14 @@ class SizeAdmin(admin.ModelAdmin):
     list_display = ('name', 'weight', 'unit', 'height', 'width',
                     'length',)
     search_fields = ('name',)
+
+@admin.register(ProductCustomization)
+class ProductCustomizationAdmin(admin.ModelAdmin):
+    list_display = ('category', 'name', 'instruction', 'input_type',
+                    'available_options', 'price_extra',
+                    'free_above_quantity',)
+    search_fields = ('category', 'name',)
+
 
 
 

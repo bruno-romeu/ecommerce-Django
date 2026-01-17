@@ -134,11 +134,24 @@ class OrderCreateView(generics.CreateAPIView):
             )
 
             for item in cart_items:
+                customization_snapshot = []
+                item_customizations = item.customizations.select_related('option').all()
+
+                for cust in item_customizations:
+                    cost = cust.get_cost(item.quantity)
+
+                    customization_snapshot.append({
+                        "name": cust.option.name,
+                        "value": cust.value,
+                        "unit_cost": float(cost),
+                        "total_cost": float(cost * item.quantity)
+                    })
                 OrderItem.objects.create(
                     order=order,
                     product=item.product,
                     quantity=item.quantity,
-                    price=item.product.price
+                    price=item.product.price,
+                    customization_details=customization_snapshot
                 )
 
             estimated_delivery_date = None
