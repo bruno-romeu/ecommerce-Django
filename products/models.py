@@ -2,12 +2,16 @@ from email.policy import default
 
 from django.db import models
 from django.utils.text import slugify
+from django.core.validators import FileExtensionValidator
 
 class Category(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nome')
     description = models.TextField(blank=True, verbose_name='Descrição')
     slug = models.SlugField(unique=True, blank=True, null=True)
-    image = models.ImageField(upload_to='categories/', blank=True, null=True, verbose_name='Imagem')
+    image = models.ImageField(upload_to='categories/', blank=True, null=True,
+                              verbose_name='Imagem',
+                              validators=[FileExtensionValidator(
+                                  allowed_extensions=['jpg', 'jpeg', 'png',])],)
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
 
     def save(self, *args, **kwargs):
@@ -29,7 +33,10 @@ class Essence(models.Model):
     description = models.TextField(blank=True, verbose_name='Descrição')
     categorias = models.ManyToManyField(Category, related_name='essences', verbose_name='Categorias')
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
-    image = models.ImageField(upload_to="essences/", blank=True, null=True, verbose_name="Imagem da Essência")
+    image = models.ImageField(upload_to="essences/", blank=True, null=True,
+                              verbose_name="Imagem da Essência",
+                              validators=[FileExtensionValidator(
+                                  allowed_extensions=['jpg', 'jpeg', 'png',])],)
     order = models.PositiveIntegerField(default=0, verbose_name="Ordem de Exibição")
     slug = models.SlugField(max_length=100, unique=True, blank=True, null=True)
 
@@ -79,7 +86,10 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products', verbose_name='Categoria')
     size = models.ForeignKey(Size, on_delete=models.SET_NULL, null=True, blank=True, related_name='products', verbose_name='Tamanho')
     is_bestseller = models.BooleanField(default=False, verbose_name="Best-seller")
-    image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name='Imagem')
+    image = models.ImageField(upload_to='products/', blank=True, null=True,
+                              verbose_name='Imagem',
+                              validators=[FileExtensionValidator(
+                                  allowed_extensions=['jpg', 'jpeg', 'png',])])
     is_active = models.BooleanField(default=True, verbose_name='Ativo')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Data de Criação", null=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True, null=True)

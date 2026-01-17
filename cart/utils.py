@@ -31,9 +31,17 @@ def calcular_frete_melhor_envio(cep_origem, cep_destino, product_list):
             
 
 CEPS_DISPONIVEIS_RETIRADA = [
-       '93800',
-       '93700',
+    '93800',
+    '93810',
+    '93815',
+    '93820',
+    '93830',
+    '93700',
 
+]
+
+CIDADES_DISPONIVEIS_RETIRADA = [
+    'SAPIRANGA',
 ]
 
 def verificar_disponibilidade_retirada(cep_destino):
@@ -41,8 +49,21 @@ def verificar_disponibilidade_retirada(cep_destino):
     Verifica se o CEP informado começa com algum dos prefixos permitidos para retirada.
     """
     cep_limpo = cep_destino.replace('-', '').strip()
-    
-    for prefixo in CEPS_DISPONIVEIS_RETIRADA:
-        if cep_limpo.startswith(prefixo):
-            return True
-    return False
+
+    try:
+        # Consulta na BrasilAPI (rápida e moderna)
+        response = requests.get(f"https://brasilapi.com.br/api/cep/v1/{cep_limpo}")
+
+        if response.status_code == 200:
+            dados = response.json()
+            cidade = dados['city']
+
+            if cidade in CIDADES_DISPONIVEIS_RETIRADA:
+                return True, f"Retirada disponível para {cidade}!"
+            else:
+                return False
+        else:
+            return False, "CEP inválido ou não encontrado."
+
+    except Exception as e:
+        return False, "Erro ao consultar serviço de CEP."
