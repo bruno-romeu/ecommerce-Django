@@ -28,11 +28,12 @@ class Category(models.Model):
     
 class Essence(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nome')
-    sensory_profile = models.CharField(max_length=100, verbose_name='Perfil Sensorial', default=Null)
+    sensory_profile = models.CharField(max_length=100, verbose_name='Perfil '
+                                                                    'Sensorial', default=None)
     notes = models.CharField(max_length=100, verbose_name='Notas Sensoriais',
-                             default=Null)
+                             default=None)
     ambient = models.CharField(max_length=100, verbose_name='Ambiente',
-                               default=Null)
+                               default=None)
     categories = models.ManyToManyField(Category, related_name='essences',
                                verbose_name='Categorias')
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
