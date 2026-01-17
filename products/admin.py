@@ -9,7 +9,8 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Essence)
 class EssenceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'description', 'order', 'is_active',)
+    list_display = ('name', 'sensory_profile', 'notes', 'ambient', 'order',
+                    'is_active',)
     search_fields = ('name', 'slug',)
     prepopulated_fields = {'slug': ('name',)}
     list_filter = ('is_active',)

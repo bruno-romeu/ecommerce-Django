@@ -1,5 +1,8 @@
+from cgi import maxlen
 from email.policy import default
+from xxlimited_35 import Null
 
+from attr.validators import max_len
 from django.db import models
 from django.utils.text import slugify
 from django.core.validators import FileExtensionValidator
@@ -30,8 +33,13 @@ class Category(models.Model):
     
 class Essence(models.Model):
     name = models.CharField(max_length=100, verbose_name='Nome')
-    description = models.TextField(blank=True, verbose_name='Descrição')
-    categorias = models.ManyToManyField(Category, related_name='essences', verbose_name='Categorias')
+    sensory_profile = models.CharField(max_length=100, verbose_name='Perfil Sensorial', default=Null)
+    notes = models.CharField(max_length=100, verbose_name='Notas Sensoriais',
+                             default=Null)
+    ambient = models.CharField(max_length=100, verbose_name='Ambiente',
+                               default=Null)
+    categories = models.ManyToManyField(Category, related_name='essences',
+                               verbose_name='Categorias')
     is_active = models.BooleanField(default=True, verbose_name="Ativo")
     image = models.ImageField(upload_to="essences/", blank=True, null=True,
                               verbose_name="Imagem da Essência",
