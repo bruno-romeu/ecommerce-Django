@@ -1,10 +1,13 @@
 from django.core.files.storage import Storage
 from django.conf import settings
+from django.utils.text import slugify
 from django.utils.deconstruct import deconstructible
 from supabase import create_client, Client
 from io import BytesIO
 import os
+import uuid
 import mimetypes
+import datetime
 
 
 @deconstructible
@@ -16,6 +19,22 @@ class SupabaseStorage(Storage):
         self.client: Client = create_client(self.supabase_url,
                                             self.supabase_key)
 
+    def _sanitize_filename(self, name):
+        """Sanitiza o nome do arquivo para ser compatível com Supabase"""
+        dir_name, file_name = os.path.split(name)
+
+        file_root, file_ext = os.path.splitext(file_name)
+
+        clean_name = slugify(file_root)
+
+        if not clean_name:
+            clean_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+
+        sanitized = os.path.join(dir_name,
+                                 f"{clean_name}{file_ext.lower()}")
+
+        return sanitized
+
     def _get_content_type(self, name):
         """Detecta o content type do arquivo"""
         content_type, _ = mimetypes.guess_type(name)
@@ -24,6 +43,7 @@ class SupabaseStorage(Storage):
     def _save(self, name, content):
         """Salva o arquivo no Supabase Storage"""
         try:
+            name = self._sanitize_filename(name)
             if hasattr(content,
                        'read'):
                 file_content = content.read()
@@ -100,6 +120,8 @@ class SupabaseStorage(Storage):
 
     def get_available_name(self, name, max_length=None):
         """Gera um nome único se o arquivo já existir"""
+        name = self._sanitize_filename(name)
+
         dir_name, file_name = os.path.split(name)
         file_root, file_ext = os.path.splitext(file_name)
 
