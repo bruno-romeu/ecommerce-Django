@@ -164,3 +164,7 @@ class ProductCustomization(models.Model):
     def __str__(self):
         return f"{self.name} - {self.category.name}"
 
+    class Meta:
+        verbose_name = "Personalização"
+        verbose_name_plural = "Personalizações"
+

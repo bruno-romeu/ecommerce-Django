@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Size, Essence, Product
+from .models import Category, Size, Essence, Product, ProductCustomization
 
 class CategorySerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
@@ -28,6 +28,22 @@ class EssenceSerializer(serializers.ModelSerializer):
         if essence.image:
             return self.context['request'].build_absolute_uri(essence.image.url)
         return None
+
+class ProductCustomizationSerializer(serializers.ModelSerializer):
+    available_options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductCustomization
+        fields = [
+            'id', 'name', 'instruction', 'input_type',
+            'available_options', 'price_extra', 'free_above_quantity'
+        ]
+
+    def get_available_options(self, obj):
+        """Transforma 'Azul,Vermelho' em ['Azul', 'Vermelho'] para o front"""
+        if obj.available_options:
+            return [opt.strip() for opt in obj.available_options.split(',')]
+        return []
 
 class ProductSerializer(serializers.ModelSerializer):
 

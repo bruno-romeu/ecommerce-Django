@@ -4,7 +4,8 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from products.models import Product, Size, Essence, Category
-from products.serializers import CategorySerializer, EssenceSerializer, ProductSerializer, SizeSerializer
+from products.serializers import (CategorySerializer, EssenceSerializer,
+                                  ProductSerializer, SizeSerializer, ProductCustomizationSerializer)
 from products.filters import ProductFilterSet
 
 
@@ -28,9 +29,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         product_serializer = self.get_serializer(instance)
         product_data = product_serializer.data
 
-        # Buscar TODOS os tamanhos e essências disponíveis, não apenas o do produto
         all_sizes = Size.objects.all()
         available_essences = instance.category.essences.filter(is_active=True)
+        customizations = instance.category.customization_options.all()
 
         size_serializer = SizeSerializer(all_sizes, many=True)
         essence_serializer = EssenceSerializer(available_essences, many=True, context={'request': request})
@@ -39,7 +40,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             'product': product_data,
             'available_options': {
                 'sizes': size_serializer.data,
-                'essences': essence_serializer.data
+                'essences': essence_serializer.data,
+                'customizations': ProductCustomizationSerializer(customizations, many=True).data
             }
         }
 
@@ -60,6 +62,6 @@ class BestSellerListView(generics.ListAPIView):
 
 
 class EssenceListView(generics.ListAPIView):
-    queryset = Essence.objects.filter(is_active=True) # Filtra apenas as ativas
+    queryset = Essence.objects.filter(is_active=True)
     serializer_class = EssenceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
