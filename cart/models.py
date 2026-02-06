@@ -7,7 +7,7 @@ class Cart(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Criado em')
 
     def get_total(self):
-        return sum(item.product.price * item.quantity for item in self.items.all())
+        return sum(item.total_price for item in self.items.all())
     
     class Meta:
         ordering = ['-created_at']

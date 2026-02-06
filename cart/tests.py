@@ -68,6 +68,7 @@ class CartModelTests(TestCase):
 
 		self.assertEqual(item.unit_price, Decimal('23.00'))
 		self.assertEqual(item.total_price, Decimal('46.00'))
+		self.assertEqual(cart.get_total(), Decimal('46.00'))
 
 	def test_customization_free_above_quantity(self):
 		cart = Cart.objects.create(user=self.user)
@@ -231,6 +232,35 @@ class CartApiTests(TestCase):
 			'product_id': self.product.id,
 			'quantity': 1
 		})
+
+		self.assertEqual(response.status_code, 400)
+
+	def test_add_item_invalid_customization_option(self):
+		self.client_api.force_authenticate(user=self.user)
+		url = reverse('cart-item-add')
+		response = self.client_api.post(url, {
+			'product_id': self.product.id,
+			'quantity': 1,
+			'customizations': [{'option_id': 9999, 'value': 'Teste'}]
+		}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+
+	def test_add_item_invalid_customization_value(self):
+		customization = ProductCustomization.objects.create(
+			category=self.category,
+			name='Cor',
+			input_type='select',
+			available_options='Azul,Verde'
+		)
+
+		self.client_api.force_authenticate(user=self.user)
+		url = reverse('cart-item-add')
+		response = self.client_api.post(url, {
+			'product_id': self.product.id,
+			'quantity': 1,
+			'customizations': [{'option_id': customization.id, 'value': 'Vermelho'}]
+		}, format='json')
 
 		self.assertEqual(response.status_code, 400)
 

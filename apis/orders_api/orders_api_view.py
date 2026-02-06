@@ -127,7 +127,7 @@ class OrderCreateView(generics.CreateAPIView):
 
         with transaction.atomic():
             products_total = sum(
-                item.product.price * item.quantity 
+                item.unit_price * item.quantity 
                 for item in cart_items
             )
 
@@ -154,7 +154,7 @@ class OrderCreateView(generics.CreateAPIView):
                     order=order,
                     product=item.product,
                     quantity=item.quantity,
-                    price=item.product.price,
+                    price=item.unit_price,
                     customization_details=customization_snapshot
                 )
 

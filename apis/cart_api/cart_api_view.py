@@ -1,4 +1,4 @@
-from rest_framework import generics, status, request, views
+from rest_framework import generics, status, request, serializers, views
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from cart.models import Cart, CartItem, CartItemCustomization
@@ -57,6 +57,11 @@ class CartItemCreateView(generics.CreateAPIView):
         quantity = serializer.validated_data.get('quantity', 1)
         customizations_data = request.data.get('customizations', [])
 
+        if customizations_data and not isinstance(customizations_data, list):
+            raise serializers.ValidationError({
+                'customizations': 'Formato inválido. Envie uma lista de personalizações.'
+            })
+
         with transaction.atomic():
             cart_item = serializer.save(cart=cart)
 
@@ -66,10 +71,16 @@ class CartItemCreateView(generics.CreateAPIView):
                     value = cust_data.get('value')
 
                     try:
-                        option = ProductCustomization.objects.get(id=option_id,
-                                                                  product=product)
+                        option = ProductCustomization.objects.get(
+                            id=option_id,
+                            category=product.category
+                        )
                     except ProductCustomization.DoesNotExist:
-                        continue
+                        raise serializers.ValidationError({
+                            'customizations': 'Opção de personalização inválida para este produto.'
+                        })
+
+                    value = self._validate_customization_value(option, value)
                     CartItemCustomization.objects.create(
                         cart_item=cart_item,
                         option=option,
@@ -79,6 +90,42 @@ class CartItemCreateView(generics.CreateAPIView):
             return Response(serializer.data,
                             status=status.HTTP_201_CREATED,
                             headers=headers)
+
+    def _validate_customization_value(self, option, value):
+        if option.input_type == 'select':
+            if not value:
+                raise serializers.ValidationError({
+                    'customizations': f"A opção '{option.name}' requer seleção de valor."
+                })
+
+            options = [opt.strip() for opt in (option.available_options or '').split(',') if opt.strip()]
+            if value not in options:
+                raise serializers.ValidationError({
+                    'customizations': f"Valor inválido para '{option.name}'."
+                })
+            return value
+
+        if option.input_type == 'boolean':
+            if isinstance(value, bool):
+                return 'Sim' if value else 'Nao'
+
+            if isinstance(value, str):
+                normalized = value.strip().lower()
+                if normalized in ['true', '1', 'sim']:
+                    return 'Sim'
+                if normalized in ['false', '0', 'nao']:
+                    return 'Nao'
+
+            raise serializers.ValidationError({
+                'customizations': f"Valor inválido para '{option.name}'. Use verdadeiro/falso."
+            })
+
+        if not value or not str(value).strip():
+            raise serializers.ValidationError({
+                'customizations': f"A opção '{option.name}' requer um texto."
+            })
+
+        return str(value).strip()
 
 
 class CartItemDestroyView(generics.DestroyAPIView):
