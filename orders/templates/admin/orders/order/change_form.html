@@ -1,0 +1,12 @@
+{% extends "admin/change_form.html" %}
+
+{% block object-tools-items %}
+    {{ block.super }}
+    {% if change and original and original.status == "processing" %}
+        <li>
+            <a href="{% url 'admin:orders_order_generate_shipping' original.id %}" class="button">
+                Gerar etiqueta e marcar como enviado
+            </a>
+        </li>
+    {% endif %}
+{% endblock %}

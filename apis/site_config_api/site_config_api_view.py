@@ -1,3 +1,4 @@
+from django.http import Http404
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, AllowAny
@@ -23,7 +24,7 @@ class HeroSectionPublicView(generics.RetrieveAPIView):
     def get_object(self):
         hero = HeroSection.objects.filter(is_active=True).first()
         if not hero:
-            self.handle_no_object_exception()
+            raise Http404("Hero section não encontrada.")
         return hero
 
 

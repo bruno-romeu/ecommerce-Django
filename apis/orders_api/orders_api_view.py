@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -14,6 +16,8 @@ from django.utils.decorators import method_decorator
 from apis.decorators import ratelimit_create_order
 from apis.utils.security_logger import log_security_event
 import re 
+
+logger = logging.getLogger(__name__)
 
 def validar_endereco_completo(address):
     """

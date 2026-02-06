@@ -61,6 +61,12 @@ class OrderSerializer(serializers.ModelSerializer):
             'estimated_delivery_days']
         read_only_fields = ['id', 'total', 'created_at', 'items', 'shipping', 'payment', 'total_with_shipping']
 
+    def create(self, validated_data):
+        validated_data.pop('shipping_service', None)
+        validated_data.pop('shipping_carrier', None)
+        validated_data.pop('estimated_delivery_days', None)
+        return super().create(validated_data)
+
     def get_total_with_shipping(self, obj):
         """Retorna total + frete"""
         total = obj.total if obj.total else Decimal('0.00')
@@ -112,8 +118,9 @@ class OrderStatusSerializer(serializers.ModelSerializer):
         current_status = self.instance.status
         
         valid_transitions = {
-            'pending': ['paid', 'canceled'],
-            'paid': ['shipped', 'canceled'],
+            'pending': ['paid', 'processing', 'canceled'],
+            'paid': ['processing', 'canceled'],
+            'processing': ['shipped', 'canceled'],
             'shipped': ['delivered'],
             'delivered': [],
             'canceled': [],
