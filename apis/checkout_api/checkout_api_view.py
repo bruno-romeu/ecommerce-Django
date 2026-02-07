@@ -8,12 +8,14 @@ from apis.utils.security_logger import log_security_event
 from checkout.models import Payment, Shipping, Coupon
 from checkout.serializer import PaymentSerializer, ShippingSerializer, CouponValidationSerializer
 from orders.models import Order
+from products.models import Product
 
 import mercadopago
 import os
 import logging
 
 from django.utils.decorators import method_decorator
+from django.db import transaction
 from apis.decorators import ratelimit_payment, ratelimit_shipping
 from django.utils import timezone
 
@@ -319,18 +321,56 @@ class PaymentWebhookView(generics.GenericAPIView):
             if status_payment == 'approved':
                 logger.info("[WEBHOOK] 7️⃣ Atualizando status do Order...")
 
-                old_order_status = order.status
-                order.status = 'processing'
-                order.save()
-
-                logger.info(f"[WEBHOOK] ✅ Order atualizado: {old_order_status} → {order.status}")
                 if old_payment_status != 'approved':
+                    # Baixa de estoque somente na primeira aprovacao do pagamento.
+                    with transaction.atomic():
+                        order_items = list(order.items.select_related('product'))
+                        product_ids = [item.product_id for item in order_items]
+
+                        products = {
+                            product.id: product
+                            for product in Product.objects.select_for_update().filter(id__in=product_ids)
+                        }
+
+                        for item in order_items:
+                            product = products.get(item.product_id)
+                            if not product:
+                                raise Exception(
+                                    f"Produto #{item.product_id} nao encontrado para baixa de estoque"
+                                )
+
+                            if product.stock_quantity <= 0:
+                                item.backorder_quantity = item.quantity
+                                item.save(update_fields=['backorder_quantity'])
+                                product.stock = False
+                                product.save(update_fields=['stock'])
+                                continue
+
+                            if product.stock_quantity < item.quantity:
+                                item.backorder_quantity = item.quantity - product.stock_quantity
+                                item.save(update_fields=['backorder_quantity'])
+                                product.stock_quantity = 0
+                            else:
+                                item.backorder_quantity = 0
+                                item.save(update_fields=['backorder_quantity'])
+                                product.stock_quantity -= item.quantity
+
+                            product.stock = product.stock_quantity > 0
+                            product.save(update_fields=['stock_quantity', 'stock'])
+
+                    old_order_status = order.status
+                    order.status = 'processing'
+                    order.save()
+
+                    logger.info(f"[WEBHOOK] ✅ Order atualizado: {old_order_status} → {order.status}")
                     log_security_event(
                         'PAYMENT_APPROVED_MANUAL_SHIPPING',
                         request,
                         details=f'Pedido #{order.id} marcado como em separação',
                         level='info'
                     )
+                else:
+                    logger.info("[WEBHOOK] Pagamento ja aprovado anteriormente, estoque nao alterado")
             else:
                 logger.info(f"[WEBHOOK] ℹ️ Status '{status_payment}' não é 'approved', não atualiza Order")
 

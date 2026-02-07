@@ -338,6 +338,12 @@ class CheckoutApiTests(TestCase):
 			method='MERCADOPAGO',
 			status='pending'
 		)
+		OrderItem.objects.create(
+			order=self.order,
+			product=Product.objects.first(),
+			quantity=1,
+			price=self.order.total
+		)
 
 		sdk_mock = MagicMock()
 		sdk_mock.payment.return_value.get.return_value = {
@@ -358,3 +364,40 @@ class CheckoutApiTests(TestCase):
 		payment.refresh_from_db()
 		self.assertEqual(self.order.status, 'processing')
 		self.assertEqual(payment.status, 'approved')
+
+	def test_payment_webhook_records_backorder(self):
+		product = Product.objects.first()
+		product.stock_quantity = 1
+		product.save(update_fields=['stock_quantity'])
+
+		payment = Payment.objects.create(
+			order=self.order,
+			method='MERCADOPAGO',
+			status='pending'
+		)
+		item = OrderItem.objects.create(
+			order=self.order,
+			product=product,
+			quantity=3,
+			price=self.order.total
+		)
+
+		sdk_mock = MagicMock()
+		sdk_mock.payment.return_value.get.return_value = {
+			'status': 200,
+			'response': {
+				'status': 'approved',
+				'external_reference': str(self.order.id),
+				'payer': {'identification': {'number': '39053344705'}}
+			}
+		}
+
+		with patch('apis.checkout_api.checkout_api_view.mercadopago.SDK', return_value=sdk_mock):
+			url = reverse('payment-webhook')
+			response = self.client_api.post(url, {'type': 'payment', 'data': {'id': '123'}}, format='json')
+
+		self.assertEqual(response.status_code, 200)
+		item.refresh_from_db()
+		product.refresh_from_db()
+		self.assertEqual(item.backorder_quantity, 2)
+		self.assertEqual(product.stock_quantity, 0)

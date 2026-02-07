@@ -6,12 +6,13 @@ from django.utils import timezone
 from apis.utils.security_logger import log_security_event
 from checkout.utils import gerar_etiqueta_melhor_envio
 from .models import Order, OrderItem
+from .serializers import OrderStatusSerializer
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     autocomplete_fields = ('product', )
-    readonly_fields = ('price',)
-    fields = ('product', 'quantity', 'price')
+    readonly_fields = ('price', 'backorder_quantity')
+    fields = ('product', 'quantity', 'backorder_quantity', 'price')
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
@@ -128,7 +129,25 @@ class OrderAdmin(admin.ModelAdmin):
     mark_as_delivered.short_description = "Marcar pedidos selecionados como entregues"
 
     def mark_as_canceled(self, request, queryset):
-        queryset.filter(status__in=['pending', 'paid', 'processing']).update(status='canceled')
+        canceled = 0
+        for order in queryset.filter(status__in=['pending', 'paid', 'processing']):
+            serializer = OrderStatusSerializer(order, data={'status': 'canceled'})
+            if serializer.is_valid():
+                serializer.save()
+                canceled += 1
+            else:
+                self.message_user(
+                    request,
+                    f"Pedido #{order.id} nao pode ser cancelado.",
+                    level=messages.WARNING
+                )
+
+        if canceled:
+            self.message_user(
+                request,
+                f"{canceled} pedido(s) cancelado(s).",
+                level=messages.SUCCESS
+            )
     mark_as_canceled.short_description = "Marcar pedidos selecionados como cancelados"
 
     def get_items_total(self, obj):

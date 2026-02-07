@@ -9,8 +9,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = OrderItem
-        fields = ['id', 'product', 'quantity', 'price', 'customization_details']
-        read_only_fields = ['id', 'product', 'price', 'customization_details']
+        fields = ['id', 'product', 'quantity', 'backorder_quantity', 'price', 'customization_details']
+        read_only_fields = ['id', 'product', 'backorder_quantity', 'price', 'customization_details']
 
 
 class ShippingDetailSerializer(serializers.Serializer):
@@ -132,3 +132,15 @@ class OrderStatusSerializer(serializers.ModelSerializer):
             )
         
         return value
+
+    def update(self, instance, validated_data):
+        new_status = validated_data.get('status', instance.status)
+
+        if new_status == 'canceled' and instance.status != 'canceled':
+            payment = getattr(instance, 'payment', None)
+            if payment and payment.status == 'approved':
+                instance.restock_items()
+
+        instance.status = new_status
+        instance.save(update_fields=['status'])
+        return instance

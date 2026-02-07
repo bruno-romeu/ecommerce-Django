@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from products.models import Product
 from accounts.models import CustomUser, Address
 
@@ -27,6 +27,34 @@ class Order(models.Model):
     def get_total_with_shipping(self):
         return (self.total + self.shipping_cost)
 
+    def restock_items(self):
+        itens = list(self.items.select_related('product'))
+        if not itens:
+            return
+
+        product_ids = [item.product_id for item in itens]
+
+        with transaction.atomic():
+            products = {
+                product.id: product
+                for product in Product.objects.select_for_update().filter(id__in=product_ids)
+            }
+
+            for item in itens:
+                product = products.get(item.product_id)
+                if not product:
+                    raise Exception(
+                        f"Produto #{item.product_id} nao encontrado para reposicao de estoque"
+                    )
+
+                restock_quantity = item.quantity - item.backorder_quantity
+                if restock_quantity <= 0:
+                    continue
+
+                product.stock_quantity += restock_quantity
+                product.stock = product.stock_quantity > 0
+                product.save(update_fields=['stock_quantity', 'stock'])
+
     @property
     def payment_status(self):
         return self.payment.status if hasattr(self, 'payment') and self.payment else 'Sem pagamento'
@@ -45,6 +73,7 @@ class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items', verbose_name='Pedido')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name='Produto')
     quantity = models.PositiveIntegerField(verbose_name='Quantidade')
+    backorder_quantity = models.PositiveIntegerField(default=0, verbose_name='Quantidade sob encomenda')
     price = models.DecimalField(max_digits=8, decimal_places=2, verbose_name='Preço')
     customization_details = models.JSONField(
         default=dict,

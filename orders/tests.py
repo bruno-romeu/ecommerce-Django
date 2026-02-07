@@ -255,3 +255,36 @@ class OrderApiTests(TestCase):
 		response = self.client_api.patch(url, {'status': 'canceled'})
 
 		self.assertEqual(response.status_code, 400)
+
+	def test_order_cancel_restores_stock_when_paid(self):
+		order = Order.objects.create(
+			client=self.user,
+			address=self.address,
+			status='processing',
+			total=Decimal('60.00'),
+			shipping_cost=Decimal('10.00')
+		)
+		OrderItem.objects.create(
+			order=order,
+			product=self.product,
+			quantity=2,
+			price=Decimal('30.00')
+		)
+		Payment.objects.create(
+			order=order,
+			method='MERCADOPAGO',
+			status='approved'
+		)
+
+		self.product.stock_quantity = 8
+		self.product.save(update_fields=['stock_quantity'])
+
+		self.client_api.force_authenticate(user=self.user)
+		url = reverse('order-cancel', kwargs={'pk': order.id})
+		response = self.client_api.patch(url, {'status': 'canceled'})
+
+		self.assertEqual(response.status_code, 200)
+		order.refresh_from_db()
+		self.product.refresh_from_db()
+		self.assertEqual(order.status, 'canceled')
+		self.assertEqual(self.product.stock_quantity, 10)
